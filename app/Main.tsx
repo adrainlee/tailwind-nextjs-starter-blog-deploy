@@ -15,7 +15,10 @@ export default function Home({ posts }) {
           {posts.slice(0, MAX_DISPLAY).map((post) => {
             const { slug, date, title, summary, tags } = post
             return (
-              <li key={slug} className="group relative rounded-xl border border-gray-200 dark:border-gray-700 p-6 2xl:p-8 hover:shadow-lg transition-shadow">
+              <li
+                key={slug}
+                className="group relative rounded-xl border border-gray-200 p-6 transition-shadow hover:shadow-lg dark:border-gray-700 2xl:p-8"
+              >
                 <article>
                   <div className="flex flex-col space-y-4">
                     <div className="flex items-center justify-between">
@@ -29,15 +32,12 @@ export default function Home({ posts }) {
                       </time>
                     </div>
                     <div className="space-y-4">
-                      <h2 className="text-2xl font-bold leading-8 tracking-tight group-hover:text-primary-500 transition-colors">
-                        <Link
-                          href={`/blog/${slug}`}
-                          className="text-gray-900 dark:text-gray-100"
-                        >
+                      <h2 className="text-2xl font-bold leading-8 tracking-tight transition-colors group-hover:text-primary-500">
+                        <Link href={`/blog/${slug}`} className="text-gray-900 dark:text-gray-100">
                           {title}
                         </Link>
                       </h2>
-                      <div className="prose prose-sm max-w-none text-gray-500 dark:text-gray-400 line-clamp-3">
+                      <div className="prose prose-sm line-clamp-3 max-w-none text-gray-500 dark:text-gray-400">
                         {summary}
                       </div>
                       <Link

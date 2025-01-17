@@ -85,10 +85,7 @@ export default function PostLayout({ content, authorDetails, next, prev, childre
             </div>
             {siteMetadata.comments && (
               <footer className="py-4">
-                <div
-                  className="text-center text-gray-700 dark:text-gray-300"
-                  id="comment"
-                >
+                <div className="text-center text-gray-700 dark:text-gray-300" id="comment">
                   <Comments slug={slug} />
                 </div>
               </footer>
