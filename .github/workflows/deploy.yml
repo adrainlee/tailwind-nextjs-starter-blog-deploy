@@ -1,0 +1,116 @@
+name: Deploy Blog
+
+on:
+  push:
+    paths:
+      - 'data/blog/**'
+      - 'app/**'
+      - 'components/**'
+      - 'layouts/**'
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'yarn'
+      
+      # 恢复依赖缓存
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            **/node_modules
+            .next/cache
+          key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-modules-
+      
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+      
+      - name: Build
+        run: |
+          yarn build
+          if [ $? -ne 0 ]; then
+            echo "构建失败！"
+            exit 1
+          fi
+        env:
+          CI: true
+      
+      # 验证构建
+      - name: Verify build
+        run: |
+          if [ ! -d ".next" ]; then
+            echo "构建目录不存在！"
+            exit 1
+          fi
+      
+      # 缓存构建产物
+      - name: Cache build output
+        uses: actions/cache@v3
+        with:
+          path: .next
+          key: ${{ runner.os }}-nextjs-build-${{ github.sha }}
+      
+      - name: Deploy to Production
+        id: deploy
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USERNAME }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            # 备份当前版本
+            cd /var/www/nextjs-blog
+            timestamp=$(date +%Y%m%d_%H%M%S)
+            cp -r .next .next_backup_$timestamp || true
+            
+            # 部署新版本
+            git pull
+            yarn install --frozen-lockfile
+            yarn build
+            
+            # 检查构建是否成功
+            if [ $? -eq 0 ]; then
+              # 重启应用
+              pm2 restart nextjs-blog
+              # 清理旧备份，保留最近3个
+              ls -td .next_backup_* | tail -n +4 | xargs rm -rf || true
+            else
+              # 如果构建失败，回滚到备份版本
+              echo "构建失败，正在回滚..."
+              rm -rf .next
+              mv .next_backup_$timestamp .next
+              pm2 restart nextjs-blog
+              exit 1
+            fi
+
+      # 部署状态通知
+      - name: Notify deploy status
+        if: always()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const status = "${{ job.status }}"
+            const message = status === "success"
+              ? "✅ 部署成功！"
+              : "❌ 部署失败，请检查日志"
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: message
+            })
