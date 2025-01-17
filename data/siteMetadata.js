@@ -4,10 +4,10 @@ const siteMetadata = {
   author: 'Adrain Lee',
   headerTitle: 'PythonOps Hub',
   description: 'A blog of Linux & PythonDev',
-  language: 'en-us',
+  language: 'zh-CN',
   theme: 'system', // system, dark or light
   siteUrl: 'https://studyblog.me',
-  siteRepo: 'https://github.com/timlrx/tailwind-nextjs-starter-blog',
+  siteRepo: 'https://github.com/adrainlee/tailwind-nextjs-starter-blog',
   siteLogo: `${process.env.BASE_PATH || ''}/static/images/logo.svg`,
   socialBanner: `${process.env.BASE_PATH || ''}/static/images/twitter-card.png`,
   mastodon: 'https://mastodon.social/@mastodonuser',
@@ -52,7 +52,7 @@ const siteMetadata = {
   newsletter: {
     // supports mailchimp, buttondown, convertkit, klaviyo, revue, emailoctopus, beehive
     // Please add your .env file and modify it according to your selection
-    provider: 'buttondown',
+    provider: 'convertkit',
   },
   comments: {
     // If you want to use an analytics provider you have to add it to the

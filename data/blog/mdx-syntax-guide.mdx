@@ -1,0 +1,394 @@
+---
+title: 'MDX语法完全指南'
+date: '2024-01-17'
+tags: ['markdown', 'mdx', '教程', '写作']
+draft: false
+summary: '通过代码和效果对照的方式，详细介绍MDX的所有主要语法特性'
+---
+
+# MDX语法完全指南
+
+本文将通过代码和效果对照的方式，详细介绍MDX的各种语法特性。每个特性都会先展示源代码，然后展示实际渲染效果。
+
+## 1. 文档头部（Frontmatter）
+
+MDX文档开头需要包含frontmatter信息，使用三个横线分隔：
+
+```yaml
+---
+title: '文章标题'
+date: '2024-01-17'
+tags: ['标签1', '标签2']
+draft: false
+summary: '文章摘要'
+---
+```
+
+## 2. 基础文本格式
+
+### 源代码：
+```markdown
+普通文本直接书写
+
+**粗体文本** 使用双星号
+
+*斜体文本* 使用单星号
+
+***粗斜体文本*** 使用三个星号
+
+~~删除线文本~~ 使用双波浪线
+
+`行内代码` 使用反引号
+```
+
+### 渲染效果：
+
+普通文本直接书写
+
+**粗体文本** 使用双星号
+
+*斜体文本* 使用单星号
+
+***粗斜体文本*** 使用三个星号
+
+~~删除线文本~~ 使用双波浪线
+
+`行内代码` 使用反引号
+
+## 3. 标题
+
+### 源代码：
+```markdown
+# 一级标题
+## 二级标题
+### 三级标题
+#### 四级标题
+##### 五级标题
+###### 六级标题
+```
+
+### 渲染效果：
+
+# 一级标题
+## 二级标题
+### 三级标题
+#### 四级标题
+##### 五级标题
+###### 六级标题
+
+## 4. 列表
+
+### 源代码：
+```markdown
+无序列表：
+- 项目一
+- 项目二
+  - 子项目A
+  - 子项目B
+
+有序列表：
+1. 第一步
+2. 第二步
+   1. 子步骤1
+   2. 子步骤2
+
+任务列表：
+- [x] 已完成任务
+- [ ] 未完成任务
+- [ ] 待办事项
+  - [x] 子任务1
+  - [ ] 子任务2
+```
+
+### 渲染效果：
+
+无序列表：
+- 项目一
+- 项目二
+  - 子项目A
+  - 子项目B
+
+有序列表：
+1. 第一步
+2. 第二步
+   1. 子步骤1
+   2. 子步骤2
+
+任务列表：
+- [x] 已完成任务
+- [ ] 未完成任务
+- [ ] 待办事项
+  - [x] 子任务1
+  - [ ] 子任务2
+
+## 5. 引用
+
+### 源代码：
+```markdown
+> 这是一段普通引用文本
+> 可以跨多行
+>> 这是嵌套引用
+
+> [!NOTE]
+> 这是一个提示信息
+
+> [!WARNING]
+> 这是一个警告信息
+
+> [!IMPORTANT]
+> 这是一个重要信息
+```
+
+### 渲染效果：
+
+> 这是一段普通引用文本
+> 可以跨多行
+>> 这是嵌套引用
+
+> [!NOTE]
+> 这是一个提示信息
+
+> [!WARNING]
+> 这是一个警告信息
+
+> [!IMPORTANT]
+> 这是一个重要信息
+
+## 6. 表格
+
+### 源代码：
+```markdown
+| 左对齐 | 居中对齐 | 右对齐 |
+|:-------|:--------:|--------:|
+| 单元格 | 单元格 | 单元格 |
+| 左对齐 | 居中 | 右对齐 |
+```
+
+### 渲染效果：
+
+| 左对齐 | 居中对齐 | 右对齐 |
+|:-------|:--------:|--------:|
+| 单元格 | 单元格 | 单元格 |
+| 左对齐 | 居中 | 右对齐 |
+
+## 7. 代码块
+
+### 源代码：
+````markdown
+```javascript
+function greeting(name) {
+  return `Hello, ${name}!`;
+}
+
+console.log(greeting('MDX'));
+```
+
+```python
+def fibonacci(n):
+    a, b = 0, 1
+    for _ in range(n):
+        yield a
+        a, b = b, a + b
+
+list(fibonacci(5))
+```
+````
+
+### 渲染效果：
+
+```javascript
+function greeting(name) {
+  return `Hello, ${name}!`;
+}
+
+console.log(greeting('MDX'));
+```
+
+```python
+def fibonacci(n):
+    a, b = 0, 1
+    for _ in range(n):
+        yield a
+        a, b = b, a + b
+
+list(fibonacci(5))
+```
+
+## 8. 数学公式
+
+### 源代码：
+```markdown
+行内公式：$E = mc^2$
+
+独立公式块：
+$$
+\begin{aligned}
+\frac{\partial f}{\partial x} &= 2x + y \\
+\frac{\partial f}{\partial y} &= x + 2y
+\end{aligned}
+$$
+
+矩阵：
+$$
+\begin{bmatrix}
+1 & 2 & 3 \\
+4 & 5 & 6 \\
+7 & 8 & 9
+\end{bmatrix}
+$$
+```
+
+### 渲染效果：
+
+行内公式：$E = mc^2$
+
+独立公式块：
+$$
+\begin{aligned}
+\frac{\partial f}{\partial x} &= 2x + y \\
+\frac{\partial f}{\partial y} &= x + 2y
+\end{aligned}
+$$
+
+矩阵：
+$$
+\begin{bmatrix}
+1 & 2 & 3 \\
+4 & 5 & 6 \\
+7 & 8 & 9
+\end{bmatrix}
+$$
+
+## 9. 链接和图片
+
+### 源代码：
+```markdown
+[外部链接](https://example.com)
+[内部链接](/blog/another-post)
+
+![图片描述](/static/images/ocean.jpeg)
+
+[![可点击的图片](/static/images/ocean.jpeg)](https://example.com)
+```
+
+### 渲染效果：
+
+[外部链接](https://example.com)
+[内部链接](/blog/another-post)
+
+![图片描述](/static/images/ocean.jpeg)
+
+[![可点击的图片](/static/images/ocean.jpeg)](https://example.com)
+
+## 10. 使用React组件
+
+### 源代码：
+```jsx
+import { CustomComponent } from '../components/CustomComponent'
+
+<div className="custom-class">
+  这是一个普通的JSX元素
+</div>
+
+<CustomComponent>
+  这里可以使用自定义React组件
+</CustomComponent>
+```
+
+注意：组件需要在项目中正确配置才能使用。
+
+## 11. 脚注
+
+### 源代码：
+```markdown
+这是一个带有脚注的句子[^1]。
+
+[^1]: 这是脚注的具体内容。
+```
+
+### 渲染效果：
+
+这是一个带有脚注的句子[^1]。
+
+[^1]: 这是脚注的具体内容。
+
+## 12. 分割线
+
+### 源代码：
+```markdown
+使用三个或更多的星号（***）、减号（---）或下划线（___）：
+
+---
+***
+___
+```
+
+### 渲染效果：
+
+使用三个或更多的星号（***）、减号（---）或下划线（___）：
+
+---
+***
+___
+
+## 13. HTML原生标签
+
+### 源代码：
+```markdown
+<details>
+<summary>点击展开更多信息</summary>
+
+这里是展开后显示的详细内容。
+可以包含**Markdown**格式。
+
+</details>
+
+<kbd>Ctrl</kbd> + <kbd>C</kbd>
+```
+
+### 渲染效果：
+
+<details>
+<summary>点击展开更多信息</summary>
+
+这里是展开后显示的详细内容。
+可以包含**Markdown**格式。
+
+</details>
+
+<kbd>Ctrl</kbd> + <kbd>C</kbd>
+
+## 14. 转义字符
+
+### 源代码：
+```markdown
+\* 星号
+\` 反引号
+\{ 花括号
+\} 花括号
+\[ 方括号
+\] 方括号
+\( 圆括号
+\) 圆括号
+\# 井号
+\+ 加号
+\- 减号
+\. 点号
+\! 感叹号
+```
+
+### 渲染效果：
+
+\* 星号
+\` 反引号
+\{ 花括号
+\} 花括号
+\[ 方括号
+\] 方括号
+\( 圆括号
+\) 圆括号
+\# 井号
+\+ 加号
+\- 减号
+\. 点号
+\! 感叹号
