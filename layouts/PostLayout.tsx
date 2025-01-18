@@ -33,6 +33,43 @@ export default function PostLayout({ content, authorDetails, next, prev, childre
   const { filePath, path, slug, date, title, tags } = content
   const basePath = path.split('/')[0]
 
+  const metaItems = [
+    {
+      key: 'authors',
+      content: (
+        <div className="flex items-center space-x-2">
+          {authorDetails.map((author) => (
+            <span key={author.name} className="text-gray-700 dark:text-gray-300">
+              {author.name}
+            </span>
+          ))}
+        </div>
+      ),
+    },
+    ...(tags && tags.length > 0
+      ? [
+          {
+            key: 'tags',
+            content: (
+              <div className="flex flex-wrap gap-2">
+                {tags.map((tag) => (
+                  <Tag key={tag} text={tag} />
+                ))}
+              </div>
+            ),
+          },
+        ]
+      : []),
+    {
+      key: 'date',
+      content: (
+        <time dateTime={date} className="text-gray-500 dark:text-gray-400">
+          {new Date(date).toLocaleDateString(siteMetadata.locale, postDateTemplate)}
+        </time>
+      ),
+    },
+  ]
+
   return (
     <SectionContainer>
       <FloatingButtons />
@@ -44,23 +81,9 @@ export default function PostLayout({ content, authorDetails, next, prev, childre
                 <PageTitle>{title}</PageTitle>
               </div>
               <div className="flex flex-wrap items-center justify-center gap-4 text-sm">
-                <div className="flex items-center space-x-2">
-                  {authorDetails.map((author) => (
-                    <span key={author.name} className="text-gray-700 dark:text-gray-300">
-                      {author.name}
-                    </span>
-                  ))}
-                </div>
-                {tags && tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {tags.map((tag) => (
-                      <Tag key={tag} text={tag} />
-                    ))}
-                  </div>
-                )}
-                <time dateTime={date} className="text-gray-500 dark:text-gray-400">
-                  {new Date(date).toLocaleDateString(siteMetadata.locale, postDateTemplate)}
-                </time>
+                {metaItems.map((item) => (
+                  <div key={item.key}>{item.content}</div>
+                ))}
               </div>
             </div>
           </header>
@@ -76,6 +99,7 @@ export default function PostLayout({ content, authorDetails, next, prev, childre
               </div>
               {siteMetadata.comments && (
                 <div
+                  key="comments-section"
                   className="pb-6 pt-6 text-center text-gray-700 dark:text-gray-300"
                   id="comment"
                 >
@@ -84,7 +108,7 @@ export default function PostLayout({ content, authorDetails, next, prev, childre
               )}
             </div>
             {siteMetadata.comments && (
-              <footer className="py-4">
+              <footer key="footer-comments" className="py-4">
                 <div className="text-center text-gray-700 dark:text-gray-300" id="comment">
                   <Comments slug={slug} />
                 </div>
