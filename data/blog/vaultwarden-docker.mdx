@@ -1,0 +1,300 @@
+---
+title: '使用 Docker 部署私有密码管理服务 Vaultwarden'
+date: '2025-01-18'
+tags: ['password-manager', 'vaultwarden', 'docker', 'self-hosted', 'security']
+draft: false
+summary: '详细介绍如何使用 Docker 部署私有密码管理服务 Vaultwarden，包括安全配置、性能优化、自动备份等完整解决方案。本文适合想要搭建私有密码管理系统的个人或小型团队。'
+authors: ['adrain']
+---
+
+import { Callout } from 'pliny/ui/Callout'
+
+<TOCInline toc={props.toc} exclude="Overview" toHeading={2} />
+
+## 项目概述
+
+Vaultwarden 是一个用 Rust 编写的开源密码管理服务，它是 Bitwarden 的非官方服务器实现。相比官方服务器，它具有以下优势：
+
+- 资源占用更少（内存占用约 10MB）
+- 部署维护更简单
+- 完全兼容官方客户端
+- 支持所有核心功能
+- 只需要记住一个主密码就能使用，如果忘记主密码还没有导出备份将是一场灾难
+
+本文将详细介绍如何使用 Docker 部署 Vaultwarden，并配置必要的安全措施。
+
+<Callout type="info">
+  本文基于以下环境进行部署：
+  - 操作系统：Ubuntu 22.04 LTS
+  - Docker 版本：24.0.0 或更高
+  - 域名：vault.adrainlee.me（请替换为你的实际域名）
+</Callout>
+
+
+## 安全性考虑
+
+在开始部署之前，请确保考虑以下安全措施：
+
+1. 系统安全
+- 使用防火墙限制端口访问
+- 启用 fail2ban 防止暴力攻击
+- 定期更新系统和软件包
+2. 数据安全
+- 启用定时备份
+- 使用加密存储
+- 实施访问控制
+3. 网络安全
+- 配置 SSL/TLS 证书
+- 启用 HTTP/2
+- 实施速率限制
+
+## 部署步骤
+
+### 1. 安装 Docker 和 Docker Compose
+
+```bash
+# 安装 Docker
+curl -fsSL https://get.docker.com | bash -s docker
+
+# 将当前用户添加到 docker 组
+sudo usermod -aG docker $USER
+
+# 应用组权限（无需重启）
+newgrp docker
+```
+
+<Callout type="warning">
+  从 Docker Compose V2 开始，命令已更改为 `docker compose`（移除了中划线）。本文使用新的命令格式。
+</Callout>
+
+### 2. 配置 Nginx 反向代理
+
+#### 2.1 安装必要组件
+
+```bash
+# 更新软件包列表
+sudo apt update
+
+# 安装 Nginx  
+sudo apt install -y nginx 
+
+#安装 Certbot
+sudo snap install --classic certbot
+```
+
+#### 2.2 配置 Nginx
+
+在开始配置nginx的作用在于，如果使用http来连接vaultwarden会有莫名其妙的错误，也毫无安全可言，可以先配置好https再运行vaultwarden容器可以平滑的使用
+
+创建 Nginx 配置文件：
+
+```nginx
+# HTTPS 服务器
+server {
+    listen 80;
+    server_name vault.adrainlee.me;
+
+    # 安全头部
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header Content-Security-Policy "default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval'" always;
+
+    # Vaultwarden API
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # WebSocket 支持
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        # 超时设置
+        proxy_read_timeout 1h;
+        proxy_send_timeout 1h;
+    }
+
+    # WebSocket 通知
+    location /notifications/hub {
+        proxy_pass http://127.0.0.1:3012;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 1h;
+        proxy_send_timeout 1h;
+    }
+
+    # WebSocket 协商
+    location /notifications/hub/negotiate {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+#### 2.3 启用配置并申请证书
+
+   
+
+```shell
+
+```
+
+
+
+```bash
+# 创建符号链接
+sudo ln -s /etc/nginx/sites-available/vaultwarden.conf /etc/nginx/sites-enabled/
+
+# 测试配置
+sudo nginx -t
+
+# 重启 Nginx
+sudo systemctl restart nginx
+
+#  安装certbot
+sudo snap install --classic certbot
+sudo ln -s /snap/bin/certbot /usr/bin/certbot
+
+# 申请 SSL 证书
+sudo certbot --nginx -d vault.adrainlee.me
+
+```
+
+如果没有安装certbot请参考官网步骤安装 https://certbot.eff.org/
+
+### 3. 部署 Vaultwarden
+
+在指定目录创建 Docker Compose 配置文件：
+
+```yaml
+services:
+  vaultwarden:
+    image: vaultwarden/server:latest
+    container_name: vaultwarden
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:80"
+      - "127.0.0.1:3012:3012"
+    volumes:
+      - ./data:/data
+    environment:
+      # 基本配置
+      - DOMAIN=https://vault.adrainlee.me
+      - SIGNUPS_ALLOWED=false  #禁止注册
+      - ADMIN_TOKEN=$(openssl rand -base64 48)  #
+
+      # 安全配置
+      - LOGIN_RATELIMIT_MAX_BURST=10
+      - LOGIN_RATELIMIT_SECONDS=60
+      - ADMIN_RATELIMIT_MAX_BURST=10
+      - ADMIN_RATELIMIT_SECONDS=60
+      - ADMIN_SESSION_LIFETIME=20
+
+      # 功能限制
+      - SENDS_ALLOWED=false
+      - EMERGENCY_ACCESS_ALLOWED=false
+      - WEB_VAULT_ENABLED=true
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/alive"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_POLL_INTERVAL=86400
+```
+
+### 4. 自动备份配置
+
+创建备份脚本：
+
+```bash
+#!/bin/bash
+
+# 配置
+BACKUP_DIR="/opt/vaultwarden/backups"
+RETENTION_DAYS=30
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+BACKUP_FILE="vaultwarden_backup_${TIMESTAMP}.tar.gz"
+LOG_FILE="${BACKUP_DIR}/backup.log"
+
+# 创建备份目录
+mkdir -p "${BACKUP_DIR}"
+
+# 备份数据
+docker exec vaultwarden sqlite3 /data/db.sqlite3 ".backup '/data/db.sqlite3.backup'"
+docker cp vaultwarden:/data/. "${BACKUP_DIR}/temp/"
+tar czf "${BACKUP_DIR}/${BACKUP_FILE}" -C "${BACKUP_DIR}/temp" .
+rm -rf "${BACKUP_DIR}/temp"
+
+# 清理旧备份
+find "${BACKUP_DIR}" -type f -name "vaultwarden_backup_*.tar.gz" -mtime +${RETENTION_DAYS} -delete
+```
+
+### 5. 维护和监控
+
+#### 5.1 健康检查
+
+```bash
+# 检查容器状态
+docker ps -a | grep vaultwarden
+
+# 查看日志
+docker logs -f vaultwarden
+
+# 检查资源使用
+docker stats vaultwarden
+```
+
+#### 5.2 更新管理
+
+Watchtower 会自动检查并更新容器。你也可以手动更新：
+
+```bash
+# 拉取最新镜像
+docker pull vaultwarden/server:latest
+
+# 重启容器
+docker-compose down
+docker-compose up -d
+```
+
+## 故障排除
+
+### 常见问题解决
+
+1. 连接问题
+- 检查 Nginx 配置
+- 验证 SSL 证书
+- 确认防火墙规则
+2. 性能问题
+- 监控资源使用
+- 优化数据库
+- 清理日志文件
+3. 备份恢复
+- 定期测试备份
+- 验证备份完整性
+- 建立恢复流程
+
+## 总结
+
+通过本文的配置，你已经搭建了一个安全、可靠的私有密码管理服务。记得定期检查系统更新、备份数据，并保持良好的安全实践。
