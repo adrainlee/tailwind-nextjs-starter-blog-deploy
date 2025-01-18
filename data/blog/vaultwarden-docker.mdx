@@ -4,9 +4,7 @@ date: '2025-01-18'
 tags: ['password-manager', 'vaultwarden', 'docker', 'self-hosted', 'security']
 draft: false
 summary: '详细介绍如何使用 Docker 部署私有密码管理服务 Vaultwarden，包括安全配置、性能优化、自动备份等完整解决方案。本文适合想要搭建私有密码管理系统的个人或小型团队。'
-authors: ['adrain']
 ---
-
 
 ## 项目概述
 
@@ -23,24 +21,29 @@ Vaultwarden 是一个用 Rust 编写的开源密码管理服务，它是 Bitward
 > **📝 环境信息**
 >
 > 本文基于以下环境进行部署：
+>
 > - 操作系统：Ubuntu 22.04 LTS
 > - Docker 版本：24.0.0 或更高
 > - 域名：vault.adrainlee.me（请替换为你的实际域名）
-
 
 ## 安全性考虑
 
 在开始部署之前，请确保考虑以下安全措施：
 
 1. 系统安全
+
 - 使用防火墙限制端口访问
 - 启用 fail2ban 防止暴力攻击
 - 定期更新系统和软件包
+
 2. 数据安全
+
 - 启用定时备份
 - 使用加密存储
 - 实施访问控制
+
 3. 网络安全
+
 - 配置 SSL/TLS 证书
 - 启用 HTTP/2
 - 实施速率限制
@@ -72,8 +75,8 @@ newgrp docker
 # 更新软件包列表
 sudo apt update
 
-# 安装 Nginx  
-sudo apt install -y nginx 
+# 安装 Nginx
+sudo apt install -y nginx
 
 #安装 Certbot
 sudo snap install --classic certbot
@@ -141,7 +144,6 @@ server {
 
 #### 2.3 启用配置并申请证书
 
-
 ```bash
 # 创建符号链接
 sudo ln -s /etc/nginx/sites-available/vaultwarden.conf /etc/nginx/sites-enabled/
@@ -174,15 +176,15 @@ services:
     container_name: vaultwarden
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8080:80"
-      - "127.0.0.1:3012:3012"
+      - '127.0.0.1:8080:80'
+      - '127.0.0.1:3012:3012'
     volumes:
       - ./data:/data
     environment:
       # 基本配置
       - DOMAIN=https://vault.adrainlee.me
-      - SIGNUPS_ALLOWED=false  #禁止注册
-      - ADMIN_TOKEN=$(openssl rand -base64 48)  #
+      - SIGNUPS_ALLOWED=false #禁止注册
+      - ADMIN_TOKEN=$(openssl rand -base64 48) #
 
       # 安全配置
       - LOGIN_RATELIMIT_MAX_BURST=10
@@ -197,7 +199,7 @@ services:
       - WEB_VAULT_ENABLED=true
 
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/alive"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:80/alive']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -273,14 +275,19 @@ docker-compose up -d
 ### 常见问题解决
 
 1. 连接问题
+
 - 检查 Nginx 配置
 - 验证 SSL 证书
 - 确认防火墙规则
+
 2. 性能问题
+
 - 监控资源使用
 - 优化数据库
 - 清理日志文件
+
 3. 备份恢复
+
 - 定期测试备份
 - 验证备份完整性
 - 建立恢复流程
