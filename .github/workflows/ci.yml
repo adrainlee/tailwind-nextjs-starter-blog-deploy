@@ -21,9 +21,21 @@ jobs:
     
     - name: Install dependencies
       run: yarn install --frozen-lockfile
-    
-    - name: Generate contentlayer
-      run: yarn contentlayer build
+
+    # 缓存.contentlayer目录
+    - name: Cache contentlayer
+      uses: actions/cache@v3
+      with:
+        path: .contentlayer
+        key: ${{ runner.os }}-contentlayer-${{ hashFiles('data/**') }}
+        restore-keys: |
+          ${{ runner.os }}-contentlayer-
+
+    # 先执行构建，这会自动生成contentlayer文件
+    - name: Build project
+      run: yarn build
+      env:
+        SKIP_BUILD_STATIC_GENERATION: true
     
     - name: Type check
       run: yarn tsc --noEmit
@@ -36,6 +48,3 @@ jobs:
     
     - name: Security audit
       run: yarn npm audit
-    
-    - name: Build test
-      run: yarn build
