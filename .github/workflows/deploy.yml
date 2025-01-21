@@ -53,6 +53,16 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
 
+      - name: 验证SSH配置
+        run: |
+          echo "正在验证SSH配置..."
+          echo "检查SSH代理状态:"
+          ssh-add -l
+          echo "检查known_hosts文件:"
+          cat ~/.ssh/known_hosts
+          echo "尝试SSH连接测试:"
+          ssh -v ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }} 'echo "SSH连接测试成功"'
+
       - name: 备份当前版本
         run: |
           ssh ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }} '
@@ -72,6 +82,8 @@ jobs:
           cd /var/www/blog &&
           tar -xzf deploy.tar.gz &&
           rm deploy.tar.gz &&
+          corepack enable &&
+          yarn set version 3.6.1 &&
           yarn install --production &&
           pm2 restart blog'
 
@@ -87,6 +99,8 @@ jobs:
           latest_backup=$(ls -t backups/backup_* | head -1) &&
           if [ -n "$latest_backup" ]; then
             tar -xzf $latest_backup &&
+            corepack enable &&
+            yarn set version 3.6.1 &&
             yarn install --production &&
             pm2 restart blog
           fi'
