@@ -3,17 +3,17 @@ title: 在国内机器安装 docker 并配置加速
 date: '2025-01-17'
 tags: ['docker', 'linux', 'mirror']
 draft: false
-summary: 在国内的 VPS 上安装 Docker 时，可能会遇到网络问题，导致安装速度缓慢甚至失败。为了解决这个问题，我们可以使用国内的镜像源。此外，安装完成后，还可以配置 Docker 镜像加速器，以提升拉取镜像的速度。本文将详细介绍如何在国内 VPS 上安装 Docker 并配置加速器 
+summary: 在国内的 VPS 上安装 Docker 时，可能会遇到网络问题，导致安装速度缓慢甚至失败。为了解决这个问题，我们可以使用国内的镜像源。此外，安装完成后，还可以配置 Docker 镜像加速器，以提升拉取镜像的速度。本文将详细介绍如何在国内 VPS 上安装 Docker 并配置加速器
 ---
+
 Docker 在国内服务器的最佳实践：安装、加速与优化指南
-
-
 
 ## 1. Docker 技术背景
 
 ### 1.1 为什么选择 Docker？
 
 Docker 提供了以下核心优势：
+
 - **一致的运行环境**：确保开发、测试和生产环境的一致性
 - **快速部署**：容器化应用可以秒级启动
 - **资源隔离**：通过 namespace 和 cgroups 实现资源隔离
@@ -23,6 +23,7 @@ Docker 提供了以下核心优势：
 ### 1.2 Docker 架构简介
 
 Docker 采用客户端-服务器（C/S）架构，主要组件包括：
+
 - Docker 守护进程（dockerd）
 - Docker 客户端（docker）
 - Docker 注册服务器（Registry）
@@ -132,8 +133,10 @@ sudo systemctl restart docker
 ### 4.1 镜像拉取失败
 
 如果遇到镜像拉取超时，可以尝试：
+
 - 更换其他镜像源
 - 使用 docker pull 重试机制：
+
 ```bash
 for i in {1..5}; do docker pull image:tag && break || sleep 15; done
 ```
@@ -141,6 +144,7 @@ for i in {1..5}; do docker pull image:tag && break || sleep 15; done
 ### 4.2 存储空间问题
 
 定期清理无用的镜像和容器：
+
 ```bash
 # 清理悬空镜像
 docker image prune -f
@@ -155,6 +159,7 @@ docker volume prune -f
 ### 4.3 网络优化
 
 优化 Docker 网络性能：
+
 ```bash
 # 修改 MTU 值
 sudo tee -a /etc/docker/daemon.json <<EOF
@@ -191,6 +196,7 @@ docker run -d \
 ## 6. 总结
 
 通过本文的配置和优化建议，你可以在国内环境下更高效地使用 Docker：
+
 - 使用国内镜像源加速安装和镜像拉取
 - 优化 Docker 守护进程配置
 - 实施必要的安全措施

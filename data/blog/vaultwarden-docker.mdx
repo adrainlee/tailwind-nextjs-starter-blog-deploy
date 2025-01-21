@@ -73,7 +73,9 @@ sudo snap install --classic certbot
 ```bash
 sudo vim /etc/nginx/sites-available/vault.adrainlee.me.conf
 ```
+
 使用以下配置
+
 ```nginx
 # HTTPS 服务器
 server {
@@ -155,7 +157,7 @@ sudo certbot --nginx -d vault.adrainlee.me
 
 ```bash
 # 使用官方脚本一键安装 Docker & Docker Compose
-curl -fsSL https://get.docker.com | bash -s docker 
+curl -fsSL https://get.docker.com | bash -s docker
 
 # 将当前用户添加到 docker 组
 sudo usermod -aG docker $USER
@@ -168,9 +170,10 @@ newgrp docker
 >
 > 从 Docker Compose V2 开始，命令已更改为 `docker compose`（移除了中划线）。本文使用新的命令格式。
 
-
 ### 3. 部署 Vaultwarden
+
 #### 3.1 创建.env文件保存ADMIN_TOKEN
+
 ```bash
 echo "ADMIN_TOKEN=$(openssl rand -base64 48)" > .env
 ```
@@ -222,33 +225,44 @@ services:
       - WATCHTOWER_CLEANUP=true
       - WATCHTOWER_POLL_INTERVAL=86400
 ```
+
 #### Watchtower 配置说明
+
 - image: containrrr/watchtower：这是 Watchtower 的官方镜像。
 - volumes: /var/run/docker.sock:/var/run/docker.sock：这是 Watchtower 监控 Docker 容器所必需的挂载卷。它允许 Watchtower 与 Docker 守护进程通信。
 - WATCHTOWER_CLEANUP=true：这个环境变量告诉 Watchtower 在更新容器后自动删除旧的镜像，避免占用磁盘空间。
 - WATCHTOWER_POLL_INTERVAL=3600：这个环境变量设置 Watchtower 检查更新的频率（以秒为单位）。这里设置为 3600 秒（1 小时），你可以根据需要调整。
 
 ### 4. 在管理后台邀请用户
+
 因为在compose配置文件中关闭了注册，需要手动邀请用户注册
+
 #### 4.1 查看 ADMIN_TOKEN
+
 ```bash
 docker compose config | grep ADMIN_TOKEN
 # 输出内容为ADMIN_TOKEN: XghY7AYd1SlPuNspub6VaBRt8N6CJmEzACTbWp8+Ph/d1vN02X53VuPi0R0GnMG/
 # 复制冒号后的所有字符趾，不包含空格
 ```
-#### 4.2 登录管理后台
-只有在配置了ADMIN_TOKEN后才会开启管理后台，地址格式为: `https://域名/admin`,输入TOKEN
-##### 4.2.1 配置SMTP服务器
-在settings选项卡 smtp email settings中配置smtp服务器保存并测试
-##### 4.2.2 邀请用户注册
-测试成功后在users选项卡输入邮箱邀请用户，用户收到邀请链接完成注册，在客户端做好配置就可以使用了
 
+#### 4.2 登录管理后台
+
+只有在配置了ADMIN_TOKEN后才会开启管理后台，地址格式为: `https://域名/admin`,输入TOKEN
+
+##### 4.2.1 配置SMTP服务器
+
+在settings选项卡 smtp email settings中配置smtp服务器保存并测试
+
+##### 4.2.2 邀请用户注册
+
+测试成功后在users选项卡输入邮箱邀请用户，用户收到邀请链接完成注册，在客户端做好配置就可以使用了
 
 ### 5. vaultwarden数据备份和恢复
 
 在使用 Docker Compose 运行 Vaultwarden 容器时，定时备份密码库是非常重要的，以确保数据安全。Vaultwarden 默认使用 SQLite 数据库来存储用户数据，因此备份主要涉及备份 SQLite 数据库文件和相关附件。
 
 #### 5.1使用定时任务备份
+
 创建备份脚本：
 
 ```bash
@@ -273,36 +287,52 @@ rm -rf "${BACKUP_DIR}/temp"
 # 清理旧备份
 find "${BACKUP_DIR}" -type f -name "vaultwarden_backup_*.tar.gz" -mtime +${RETENTION_DAYS} -delete
 ```
+
 将上述脚本保存为 backup_vaultwarden.sh，并赋予执行权限：
+
 ```bash
 chmod +x backup_vaultwarden.sh
 ```
+
 使用 cron 来定时执行备份脚本。编辑 cron 任务：
+
 ```bash
 crontab -e
 ```
+
 添加以下行，表示每天凌晨 2 点执行备份脚本：
+
 ```bash
 0 2 * * * /path/to/backup_vaultwarden.sh
 ```
+
 保存并退出。cron 将每天自动执行备份脚本，并将备份文件存储在指定的目录中。
+
 #### 4.2 恢复备份
+
 如果需要恢复备份，可以使用以下步骤：
 停止 Vaultwarden 容器
+
 ```bash
 docker-compose down
 ```
+
 恢复备份文件,将备份文件解压到 Vaultwarden 的数据目录中：
+
 ```bash
 tar xzf /path/to/backup/vaultwarden_backup_YYYYMMDD_HHMMSS.tar.gz -C /path/to/vaultwarden_data
 ```
+
 重新启动 Vaultwarden 容器
+
 ```bash
 docker-compose up -d
 ```
 
 ### 5. 客户端配置指南
+
 #### 5.1 浏览器扩展设置
+
 在浏览器扩展中配置自托管服务器：
 
 - 安装 Bitwarden 浏览器扩展
@@ -310,7 +340,9 @@ docker-compose up -d
 - 选择"自托管环境"
 - 输入服务器 URL：https://vault.adrainlee.me
 - 保存设置并登录
+
 #### 移动应用配置
+
 在 Bitwarden 移动应用中配置：
 
 - 打开 Bitwarden 应用
