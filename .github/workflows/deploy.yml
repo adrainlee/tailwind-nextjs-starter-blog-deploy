@@ -86,7 +86,7 @@ jobs:
           sudo chmod -R 777 /usr/local/share/yarn &&
           sudo chmod -R 777 /usr/local/bin/yarn &&
           yarn set version 3.6.1 &&
-          yarn workspaces focus --production &&
+          yarn workspaces focus &&
           pm2 restart blog'
 
       - name: 部署成功通知
@@ -105,7 +105,7 @@ jobs:
             sudo chmod -R 777 /usr/local/share/yarn &&
             sudo chmod -R 777 /usr/local/bin/yarn &&
             yarn set version 3.6.1 &&
-            yarn workspaces focus --production &&
+            yarn workspaces focus &&
             pm2 restart blog
           fi'
 
