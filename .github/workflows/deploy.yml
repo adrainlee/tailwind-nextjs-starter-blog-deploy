@@ -29,6 +29,8 @@ jobs:
 
       - name: 构建项目
         run: yarn build
+        env:
+          NODE_OPTIONS: '--max_old_space_size=4096'
 
       - name: 验证构建结果
         run: |
