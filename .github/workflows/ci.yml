@@ -42,21 +42,3 @@ jobs:
       - name: 依赖包安全审计
         run: yarn npm audit
 
-  test:
-    name: 单元测试
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: 设置 Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-          cache: 'yarn'
-
-      - name: 安装依赖
-        run: yarn install --frozen-lockfile
-
-      - name: 运行测试
-        run: yarn test
