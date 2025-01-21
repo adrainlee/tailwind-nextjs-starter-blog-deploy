@@ -31,26 +31,29 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-contentlayer-
 
+    # 缓存.contentlayer目录
+    - name: Cache contentlayer
+      uses: actions/cache@v3
+      with:
+        path: .contentlayer
+        key: ${{ runner.os }}-contentlayer-${{ hashFiles('data/**', 'contentlayer.config.ts') }}
+        restore-keys: |
+          ${{ runner.os }}-contentlayer-
+
     # 生成contentlayer文件
     - name: Generate contentlayer files
       run: |
         echo "开始生成contentlayer文件..."
-        yarn contentlayer2 build
-        ls -la .contentlayer || true
-        echo "contentlayer文件生成完成"
-
+        yarn build
+        echo "检查生成的文件："
+        ls -la .contentlayer/generated || true
+        
     # 执行类型检查
     - name: Type check
       run: |
         echo "开始类型检查..."
         yarn tsc --noEmit
         echo "类型检查完成"
-
-    # 执行构建
-    - name: Build project
-      run: yarn build
-      env:
-        NODE_ENV: production
     
     - name: Lint check
       run: yarn lint
