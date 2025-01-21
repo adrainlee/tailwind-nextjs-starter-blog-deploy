@@ -36,7 +36,11 @@ jobs:
         run: yarn npm audit
 
       - name: 构建测试
-        run: yarn build
+        run: |
+          yarn install --frozen-lockfile
+          yarn build
+        env:
+          NODE_OPTIONS: '--max_old_space_size=4096'
 
   test:
     name: 单元测试
