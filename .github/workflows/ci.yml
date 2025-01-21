@@ -1,4 +1,4 @@
-name: Code Quality Check
+name: CI
 
 on:
   pull_request:
@@ -8,65 +8,31 @@ on:
 
 jobs:
   quality:
-    name: Code Quality
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'yarn'
-
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile
-
-      - name: Type check
-        run: yarn tsc --noEmit
-
-      - name: Lint check
-        run: yarn lint
-
-      - name: Prettier check
-        run: yarn prettier --check .
-
-      - name: Security audit
-        run: yarn npm audit
-
-      - name: Build test
-        run: yarn build
-        env:
-          CI: true
-
-      # 缓存构建产物
-      - name: Cache build output
-        uses: actions/cache@v3
-        with:
-          path: .next
-          key: ${{ runner.os }}-nextjs-build-${{ github.sha }}
-
-      # 状态报告
-      - name: Report Status
-        if: always()
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const { owner, repo, number } = context.issue;
-            const status = "${{ job.status }}";
-            
-            let summary = "## 代码质量检查报告\n\n";
-            summary += status === "success" 
-              ? "✅ 所有检查通过\n" 
-              : "❌ 检查失败，请查看详细日志\n";
-            
-            if (context.payload.pull_request) {
-              await github.rest.issues.createComment({
-                owner,
-                repo,
-                issue_number: number,
-                body: summary
-              });
-            }
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'yarn'
+    
+    - name: Install dependencies
+      run: yarn install --frozen-lockfile
+    
+    - name: Type check
+      run: yarn tsc --noEmit
+    
+    - name: Lint check
+      run: yarn lint
+    
+    - name: Prettier check
+      run: yarn prettier --check .
+    
+    - name: Security audit
+      run: yarn npm audit
+    
+    - name: Build test
+      run: yarn build

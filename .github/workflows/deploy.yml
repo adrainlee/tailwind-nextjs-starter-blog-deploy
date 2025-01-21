@@ -1,116 +1,104 @@
-name: Deploy Blog
+name: Deploy
 
 on:
   push:
+    branches: [ main ]
     paths:
       - 'data/blog/**'
       - 'app/**'
       - 'components/**'
       - 'layouts/**'
-    branches:
-      - main
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
+    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'yarn'
-      
-      # 恢复依赖缓存
-      - name: Cache dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            **/node_modules
-            .next/cache
-          key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-modules-
-      
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile
-      
-      - name: Build
-        run: |
-          yarn build
-          if [ $? -ne 0 ]; then
-            echo "构建失败！"
-            exit 1
-          fi
-        env:
-          CI: true
-      
-      # 验证构建
-      - name: Verify build
-        run: |
-          if [ ! -d ".next" ]; then
-            echo "构建目录不存在！"
-            exit 1
-          fi
-      
-      # 缓存构建产物
-      - name: Cache build output
-        uses: actions/cache@v3
-        with:
-          path: .next
-          key: ${{ runner.os }}-nextjs-build-${{ github.sha }}
-      
-      - name: Deploy to Production
-        id: deploy
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USERNAME }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          script: |
-            # 备份当前版本
-            cd /var/www/nextjs-blog
-            timestamp=$(date +%Y%m%d_%H%M%S)
-            cp -r .next .next_backup_$timestamp || true
-            
-            # 部署新版本
-            git pull
-            yarn install --frozen-lockfile
-            yarn build
-            
-            # 检查构建是否成功
-            if [ $? -eq 0 ]; then
-              # 重启应用
-              pm2 restart nextjs-blog
-              # 清理旧备份，保留最近3个
-              ls -td .next_backup_* | tail -n +4 | xargs rm -rf || true
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'yarn'
+    
+    - name: Install dependencies
+      run: yarn install --frozen-lockfile
+    
+    - name: Build
+      run: yarn build
+    
+    - name: Deploy to production
+      env:
+        SERVER_HOST: ${{ secrets.SERVER_HOST }}
+        SERVER_USERNAME: ${{ secrets.SERVER_USERNAME }}
+        SSH_PRIVATE_KEY: ${{ secrets.SERVER_SSH_KEY }}
+      run: |
+        # 设置SSH密钥
+        mkdir -p ~/.ssh
+        echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+        
+        # 备份当前版本
+        ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SERVER_USERNAME@$SERVER_HOST "cd /var/www/blog && \
+          if [ -d current ]; then \
+            timestamp=\$(date +%Y%m%d_%H%M%S) && \
+            mv current backup_\$timestamp && \
+            ls -1d backup_* | sort -r | tail -n +4 | xargs -r rm -rf; \
+          fi"
+        
+        # 检查并安装必要的软件
+        ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SERVER_USERNAME@$SERVER_HOST "
+          # 检查Node.js版本，确保版本 >= 18
+          if ! command -v node &> /dev/null; then
+            echo "Node.js未安装，正在安装 Node.js 18..."
+            curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash - && \
+            sudo apt-get install -y nodejs
+          else
+            node_version=\$(node -v | cut -d. -f1 | tr -d 'v')
+            if [ "\$node_version" -lt "18" ]; then
+              echo "Node.js版本过低（当前版本：\$(node -v)），正在更新到 Node.js 18..."
+              curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash - && \
+              sudo apt-get install -y nodejs
             else
-              # 如果构建失败，回滚到备份版本
-              echo "构建失败，正在回滚..."
-              rm -rf .next
-              mv .next_backup_$timestamp .next
-              pm2 restart nextjs-blog
-              exit 1
+              echo "Node.js版本符合要求（当前版本：\$(node -v)）"
             fi
+          fi
 
-      # 部署状态通知
-      - name: Notify deploy status
-        if: always()
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const status = "${{ job.status }}"
-            const message = status === "success"
-              ? "✅ 部署成功！"
-              : "❌ 部署失败，请检查日志"
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
+          # 检查yarn是否安装，如果没有则安装
+          if ! command -v yarn &> /dev/null; then
+            sudo npm install -g yarn
+          fi
+
+          # 检查PM2是否安装，如果没有则安装
+          if ! command -v pm2 &> /dev/null; then
+            sudo npm install -g pm2
+          fi
+        "
+
+        # 部署新版本
+        tar czf - .next public | ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SERVER_USERNAME@$SERVER_HOST "cd /var/www/blog && \
+          mkdir -p current && \
+          cd current && \
+          tar xzf - && \
+          pm2 restart blog || pm2 start yarn --name blog -- start"
+        
+        # 删除SSH密钥
+        rm -f ~/.ssh/deploy_key
+    
+    - name: Notify deployment status
+      if: always()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const status = '${{ job.status }}'
+          const issue_number = context.issue.number
+          
+          if (issue_number) {
+            await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: message
+              issue_number: issue_number,
+              body: `Deployment ${status === 'success' ? 'succeeded ✅' : 'failed ❌'}`
             })
+          }
