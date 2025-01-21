@@ -12,7 +12,7 @@ const MAX_DISPLAY = 5
  * 展示最新的博客文章列表，包含标签、日期、标题和摘要
  * 如果文章数量超过MAX_DISPLAY，显示"查看全部文章"链接
  */
-export default function Home({ posts }: { posts: Array<{ slug: string; date: string; title: string; summary: string; tags: string[] }> }) {
+export default function Home({ posts }: { posts: Array<{ slug: string; date: string; title: string; summary?: string; tags: string[] }> }) {
   return (
     <>
       <div className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -44,7 +44,7 @@ export default function Home({ posts }: { posts: Array<{ slug: string; date: str
                         </Link>
                       </h2>
                       <div className="prose prose-sm line-clamp-3 max-w-none text-gray-500 dark:text-gray-400">
-                        {summary}
+                        {summary || '暂无摘要'}
                       </div>
                       <Link
                         href={`/blog/${slug}`}
