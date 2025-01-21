@@ -8,72 +8,51 @@ on:
 
 jobs:
   quality:
-    runs-on: ubuntu-22.04
+    name: 代码质量检查
+    runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'yarn'
-    
-    - name: Install dependencies
-      run: yarn install --frozen-lockfile
-
-    # 缓存.contentlayer目录
-    - name: Cache contentlayer
-      uses: actions/cache@v3
-      with:
-        path: .contentlayer
-        key: ${{ runner.os }}-contentlayer-${{ hashFiles('data/**') }}
-        restore-keys: |
-          ${{ runner.os }}-contentlayer-
-
-    # 缓存.contentlayer目录
-    - name: Cache contentlayer
-      uses: actions/cache@v3
-      with:
-        path: .contentlayer
-        key: ${{ runner.os }}-contentlayer-${{ hashFiles('data/**', 'contentlayer.config.ts') }}
-        restore-keys: |
-          ${{ runner.os }}-contentlayer-
-
-    # 生成contentlayer文件
-    - name: Generate contentlayer files
-      run: |
-        echo "开始生成contentlayer文件..."
-        yarn build
-        echo "构建完成，检查生成的文件："
-        ls -la .contentlayer/generated || true
+      - uses: actions/checkout@v3
+      
+      - name: 设置 Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'yarn'
+          
+      - name: 安装依赖
+        run: yarn install --frozen-lockfile
         
-        if [ ! -d ".contentlayer/generated" ]; then
-          echo "错误：.contentlayer/generated 目录不存在"
-          echo "检查 next-contentlayer2 是否正确运行..."
-          yarn next-contentlayer2 --version || true
-          echo "检查项目结构："
-          ls -la
-          exit 1
-        fi
+      - name: TypeScript 类型检查
+        run: yarn tsc --noEmit
         
-        echo "contentlayer文件生成成功"
+      - name: ESLint 检查
+        run: yarn lint
         
-    # 执行类型检查
-    - name: Type check
-      env:
-        DEBUG: "contentlayer:*"
-        NODE_ENV: "development"
-      run: |
-        echo "开始类型检查..."
-        yarn tsc --noEmit
-        echo "类型检查完成"
+      - name: Prettier 格式检查
+        run: yarn prettier --check .
+        
+      - name: 依赖包安全审计
+        run: yarn npm audit
+        
+      - name: 构建测试
+        run: yarn build
+
+  test:
+    name: 单元测试
+    runs-on: ubuntu-latest
     
-    - name: Lint check
-      run: yarn lint
-    
-    - name: Prettier check
-      run: yarn prettier --check .
-    
-    - name: Security audit
-      run: yarn npm audit
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: 设置 Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'yarn'
+          
+      - name: 安装依赖
+        run: yarn install --frozen-lockfile
+        
+      - name: 运行测试
+        run: yarn test
