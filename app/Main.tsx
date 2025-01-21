@@ -4,9 +4,15 @@ import siteMetadata from '@/data/siteMetadata'
 import { formatDate } from 'pliny/utils/formatDate'
 import NewsletterForm from 'pliny/ui/NewsletterForm'
 
+// 首页展示的最大文章数量
 const MAX_DISPLAY = 5
 
-export default function Home({ posts }) {
+/**
+ * 博客首页主组件
+ * 展示最新的博客文章列表，包含标签、日期、标题和摘要
+ * 如果文章数量超过MAX_DISPLAY，显示"查看全部文章"链接
+ */
+export default function Home({ posts }: { posts: Array<{ slug: string; date: string; title: string; summary: string; tags: string[] }> }) {
   return (
     <>
       <div className="divide-y divide-gray-200 dark:divide-gray-700">
