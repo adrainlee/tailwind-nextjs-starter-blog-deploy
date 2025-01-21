@@ -31,14 +31,26 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-contentlayer-
 
-    # 先执行构建，这会自动生成contentlayer文件
+    # 生成contentlayer文件
+    - name: Generate contentlayer files
+      run: |
+        echo "开始生成contentlayer文件..."
+        yarn contentlayer2 build
+        ls -la .contentlayer || true
+        echo "contentlayer文件生成完成"
+
+    # 执行类型检查
+    - name: Type check
+      run: |
+        echo "开始类型检查..."
+        yarn tsc --noEmit
+        echo "类型检查完成"
+
+    # 执行构建
     - name: Build project
       run: yarn build
       env:
-        SKIP_BUILD_STATIC_GENERATION: true
-    
-    - name: Type check
-      run: yarn tsc --noEmit
+        NODE_ENV: production
     
     - name: Lint check
       run: yarn lint
