@@ -52,7 +52,8 @@ jobs:
             nvm use 18 || nvm install 18 && \
             corepack enable && \
             yarn -v || npm install -g yarn && \
-            command -v pm2 &> /dev/null || npm install -g pm2"
+            npm install -g pm2 && \
+            pm2 -v"
 
           # 部署新版本
           tar czf - .next public package.json yarn.lock | ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SERVER_USERNAME@$SERVER_HOST "source ~/.bashrc && \
@@ -65,7 +66,10 @@ jobs:
             yarn -v && \
             yarn install && \
             yarn build && \
-            pm2 restart blog || pm2 start yarn --name blog -- start"
+            which pm2 && \
+            pm2 list && \
+            pm2 delete blog || true && \
+            pm2 start yarn --name blog -- start"
 
           # 删除SSH密钥
           rm -f ~/.ssh/deploy_key
