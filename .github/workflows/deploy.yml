@@ -130,7 +130,7 @@ jobs:
               --max-memory-restart 5000M \
               --env production \
               --log-date-format 'YYYY-MM-DD HH:mm:ss' \
-              -- serve"
+              -- serve --port 3001"
 
           # 删除SSH密钥
           rm -f ~/.ssh/deploy_key
