@@ -73,7 +73,27 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: '.next/,public/,package.json,yarn.lock,.yarnrc.yml,.yarn/,app/,components/,css/,data/,contentlayer.config.ts'
+          source: >-
+            .next/,
+            public/,
+            app/,
+            components/,
+            css/,
+            data/,
+            layouts/,
+            scripts/,
+            contentlayer.config.ts,
+            next.config.js,
+            postcss.config.js,
+            tailwind.config.js,
+            tsconfig.json,
+            eslint.config.mjs,
+            prettier.config.js,
+            package.json,
+            yarn.lock,
+            .yarnrc.yml,
+            .yarn/,
+            vercel.json
           target: '/data/blog'
 
       - name: Execute remote SSH commands
