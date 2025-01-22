@@ -193,7 +193,61 @@ docker run -d \
     your-image
 ```
 
-## 6. 总结
+## 6. Docker 监控最佳实践
+
+### 6.1 容器监控工具
+
+推荐使用以下工具进行 Docker 监控：
+
+- **Prometheus + cAdvisor**: 收集容器指标
+- **Grafana**: 可视化监控面板
+- **Alertmanager**: 告警管理
+
+### 6.2 监控指标配置
+
+```bash
+# 启动 cAdvisor
+docker run -d \
+  --volume=/:/rootfs:ro \
+  --volume=/var/run:/var/run:ro \
+  --volume=/sys:/sys:ro \
+  --volume=/var/lib/docker/:/var/lib/docker:ro \
+  --publish=8080:8080 \
+  --name=cadvisor \
+  google/cadvisor:latest
+```
+
+### 6.3 关键监控指标
+
+- 容器 CPU 使用率
+- 内存使用情况
+- 磁盘 I/O
+- 网络流量
+- 容器重启次数
+
+### 6.4 告警配置示例
+
+```yaml
+groups:
+  - name: docker_alerts
+    rules:
+      - alert: ContainerHighCPU
+        expr: container_cpu_usage_seconds_total > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: '容器 CPU 使用率过高'
+      - alert: ContainerHighMemory
+        expr: container_memory_usage_bytes / container_spec_memory_limit_bytes > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: '容器内存使用率过高'
+```
+
+## 7. 总结
 
 通过本文的配置和优化建议，你可以在国内环境下更高效地使用 Docker：
 
@@ -201,6 +255,7 @@ docker run -d \
 - 优化 Docker 守护进程配置
 - 实施必要的安全措施
 - 解决常见问题
+- 建立完善的监控体系
 
 持续关注 Docker 生态系统的发展，及时更新配置和最佳实践，将帮助你在容器化部署中获得更好的体验。
 
@@ -211,3 +266,4 @@ docker run -d \
 - [Docker Hub](https://hub.docker.com/)
 - [Docker 安全最佳实践](https://docs.docker.com/engine/security/security/)
 - [Docker-ZeroTier-Planet](https://github.com/xubiaolin/docker-zerotier-planet)
+- [cAdvisor 官方文档](https://github.com/google/cadvisor)
