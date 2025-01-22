@@ -64,7 +64,7 @@ jobs:
   deploy:
     needs: ci
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v4
@@ -73,66 +73,80 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
+          cache: 'yarn'
 
-      - name: Setup Yarn
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build
+        run: yarn build
+
+      - name: Deploy to production
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USERNAME: ubuntu
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
-          corepack enable
-          corepack prepare yarn@3.6.1 --activate
+          # 设置SSH密钥
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
 
-      - name: Install Dependencies
-        run: yarn install
+          # 备份当前版本
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SERVER_USERNAME@$SERVER_HOST "cd /data/blog && \
+            if [ -d current ]; then \
+              timestamp=\$(date +%Y%m%d_%H%M%S) && \
+              mv current backup_\$timestamp && \
+              ls -1d backup_* | sort -r | tail -n +4 | xargs -r rm -rf; \
+            fi"
 
-      - name: Build Production
-        run: |
-          export NODE_ENV=production
-          yarn build
+          # 检查并安装必要的软件
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SERVER_USERNAME@$SERVER_HOST "source ~/.bashrc && \
+            export NVM_DIR=\"\$HOME/.nvm\" && \
+            [ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\" && \
+            nvm use 18 || nvm install 18 && \
+            export PATH=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.nvm/versions/node/v18.20.6/bin:\$PATH\" && \
+            corepack enable && \
+            yarn -v || npm install -g yarn && \
+            npm install -g pm2 && \
+            pm2 -v"
 
-      - name: Deploy to Server
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ubuntu
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: >-
-            .next/,
-            .contentlayer/,
-            public/,
-            package.json,
-            yarn.lock,
-            .yarnrc.yml,
-            .yarn/releases/,
-            next.config.js,
-            postcss.config.js,
-            tailwind.config.js
-          target: '/data/blog'
-
-      - name: Execute remote SSH commands
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ubuntu
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            # 设置Node.js环境
-            export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            cd /data/blog || exit 1
-            nvm use 18 || exit 1
-
-            # 设置环境变量
-            export NODE_ENV=production
-            export NEXT_TELEMETRY_DISABLED=1
-
-            # 安装生产环境依赖
-            yarn install --frozen-lockfile --production
-
-            # 确保目录权限
-            chown -R ubuntu:ubuntu .
-
-            # 重启应用
-            pm2 delete blog || true
-            pm2 start yarn \
-              --name "blog" \
+          # 部署新版本
+          tar czf - .next public scripts package.json yarn.lock .yarnrc.yml .yarn/releases next.config.js postcss.config.js tailwind.config.js | \
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SERVER_USERNAME@$SERVER_HOST "source ~/.bashrc && \
+            export NVM_DIR=\"\$HOME/.nvm\" && \
+            [ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\" && \
+            nvm use 18 && \
+            export PATH=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.nvm/versions/node/v18.20.6/bin:\$PATH\" && \
+            cd /data/blog && \
+            mkdir -p current && \
+            cd current && \
+            tar xzf - && \
+            yarn install --frozen-lockfile && \
+            export NODE_ENV=production && \
+            export NEXT_TELEMETRY_DISABLED=1 && \
+            pm2 delete blog || true && \
+            pm2 start yarn --name blog \
               --time \
-              --max-memory-restart 500M \
-              -- start
+              --max-memory-restart 5000M \
+              -- start"
+
+          # 删除SSH密钥
+          rm -f ~/.ssh/deploy_key
+
+      - name: Notify deployment status
+        if: always()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const status = '${{ job.status }}'
+            const issue_number = context.issue.number
+
+            if (issue_number) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue_number,
+                body: `Deployment ${status === 'success' ? 'succeeded ✅' : 'failed ❌'}`
+              })
+            }
