@@ -67,7 +67,7 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: '.next/,public/,package.json,yarn.lock,.yarnrc.yml,.yarn/'
+          source: '.next/,public/,package.json,yarn.lock,.yarnrc.yml,.yarn/,app/'
           target: '/data/blog'
 
       - name: Execute remote SSH commands
