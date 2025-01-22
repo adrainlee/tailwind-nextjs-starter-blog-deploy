@@ -48,31 +48,20 @@ jobs:
             fi"
 
           # 检查并安装必要的软件
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SERVER_USERNAME@$SERVER_HOST "
-            # 加载nvm
-            export NVM_DIR=\"\$HOME/.nvm\"
-            [ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\"
-            
-            # 使用Node.js 18
-            nvm use 18 || nvm install 18
-            
-            # 启用并检查yarn
-            corepack enable
-            yarn -v || npm install -g yarn
-
-            # 检查PM2是否安装，如果没有则安装
-            if ! command -v pm2 &> /dev/null; then
-              npm install -g pm2
-            fi
-          "
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SERVER_USERNAME@$SERVER_HOST "export NVM_DIR=\"\$HOME/.nvm\" && \
+            [ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\" && \
+            nvm use 18 || nvm install 18 && \
+            corepack enable && \
+            yarn -v || npm install -g yarn && \
+            command -v pm2 &> /dev/null || npm install -g pm2"
 
           # 部署新版本
-          tar czf - .next public package.json yarn.lock | ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SERVER_USERNAME@$SERVER_HOST "cd /var/www/blog && \
+          tar czf - .next public package.json yarn.lock | ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SERVER_USERNAME@$SERVER_HOST "export NVM_DIR=\"\$HOME/.nvm\" && \
+            [ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\" && \
+            cd /var/www/blog && \
             mkdir -p current && \
             cd current && \
             tar xzf - && \
-            export NVM_DIR="$HOME/.nvm" && \
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && \
             nvm use 18 && \
             corepack enable && \
             yarn -v && \
