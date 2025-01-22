@@ -2,11 +2,29 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+    paths:
+      - 'data/blog/**'
+      - 'app/**'
+      - 'components/**'
+      - 'layouts/**'
+      - 'css/**'
+      - 'public/**'
+      - 'data/authors/**'
+      - 'data/*.{js,ts}'
+      - '*.config.{js,ts}'
   pull_request:
-    branches:
-      - main
+    branches: [main]
+    paths:
+      - 'data/blog/**'
+      - 'app/**'
+      - 'components/**'
+      - 'layouts/**'
+      - 'css/**'
+      - 'public/**'
+      - 'data/authors/**'
+      - 'data/*.{js,ts}'
+      - '*.config.{js,ts}'
 
 jobs:
   ci:
@@ -78,35 +96,14 @@ jobs:
           source: >-
             .next/,
             .contentlayer/,
-            .devcontainer/,
-            .vscode/,
-            .husky/,
             public/,
-            app/,
-            components/,
-            css/,
-            data/,
-            docs/,
-            faq/,
-            layouts/,
-            scripts/,
-            templates/,
-            contentlayer.config.ts,
-            next.config.js,
-            postcss.config.js,
-            tailwind.config.js,
-            tsconfig.json,
-            eslint.config.mjs,
-            prettier.config.js,
-            next-env.d.ts,
-            jsconfig.json,
             package.json,
             yarn.lock,
             .yarnrc.yml,
-            .yarn/,
-            vercel.json,
-            README.md,
-            LICENSE
+            .yarn/releases/,
+            next.config.js,
+            postcss.config.js,
+            tailwind.config.js
           target: '/data/blog'
 
       - name: Execute remote SSH commands
@@ -122,32 +119,20 @@ jobs:
             cd /data/blog || exit 1
             nvm use 18 || exit 1
 
-            # 设置系统限制
-            ulimit -n 65535
-
-            # 启用并配置Yarn
-            corepack enable
-            corepack prepare yarn@3.6.1 --activate
-            mkdir -p .yarn/releases
-
-            # 确保目录权限
-            chown -R ubuntu:ubuntu .
-
-            # 清理和准备环境
-            rm -rf node_modules
-            rm -rf .next
             # 设置环境变量
             export NODE_ENV=production
             export NEXT_TELEMETRY_DISABLED=1
 
-            # 清理缓存
-            yarn cache clean
-            rm -rf .next/cache
+            # 安装生产环境依赖
+            yarn install --frozen-lockfile --production
 
-            # 安装依赖并构建
-            yarn install --frozen-lockfile
-            yarn build
+            # 确保目录权限
+            chown -R ubuntu:ubuntu .
 
             # 重启应用
             pm2 delete blog || true
-            pm2 start npm --name "blog" -- start -- --port 3000 --hostname 0.0.0.0
+            pm2 start yarn \
+              --name "blog" \
+              --time \
+              --max-memory-restart 500M \
+              -- start
