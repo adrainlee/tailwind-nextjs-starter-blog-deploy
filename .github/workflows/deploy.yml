@@ -48,16 +48,14 @@ jobs:
             fi"
 
           # 检查并安装必要的软件
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SERVER_USERNAME@$SERVER_HOST "export NVM_DIR=\"\$HOME/.nvm\" && \
-            [ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\" && \
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SERVER_USERNAME@$SERVER_HOST "source ~/.bashrc && \
             nvm use 18 || nvm install 18 && \
             corepack enable && \
             yarn -v || npm install -g yarn && \
             command -v pm2 &> /dev/null || npm install -g pm2"
 
           # 部署新版本
-          tar czf - .next public package.json yarn.lock | ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SERVER_USERNAME@$SERVER_HOST "export NVM_DIR=\"\$HOME/.nvm\" && \
-            [ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\" && \
+          tar czf - .next public package.json yarn.lock | ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SERVER_USERNAME@$SERVER_HOST "source ~/.bashrc && \
             cd /var/www/blog && \
             mkdir -p current && \
             cd current && \
