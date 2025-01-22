@@ -93,11 +93,12 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
 
           # 备份当前版本
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SERVER_USERNAME@$SERVER_HOST "cd /data/blog && \
-            if [ -d current ]; then \
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SERVER_USERNAME@$SERVER_HOST "cd /data && \
+            if [ -d blog ]; then \
               timestamp=\$(date +%Y%m%d_%H%M%S) && \
-              mv current backup_\$timestamp && \
-              ls -1d backup_* | sort -r | tail -n +4 | xargs -r rm -rf; \
+              mv blog blog_backup_\$timestamp && \
+              mkdir blog && \
+              ls -1d blog_backup_* | sort -r | tail -n +4 | xargs -r rm -rf; \
             fi"
 
           # 检查并安装必要的软件
@@ -112,15 +113,13 @@ jobs:
             pm2 -v"
 
           # 部署新版本
-          tar czf - .next public scripts package.json yarn.lock .yarnrc.yml .yarn/releases next.config.js postcss.config.js tailwind.config.js | \
+          tar czf - .next public package.json next.config.js | \
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SERVER_USERNAME@$SERVER_HOST "source ~/.bashrc && \
             export NVM_DIR=\"\$HOME/.nvm\" && \
             [ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\" && \
             nvm use 18 && \
             export PATH=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.nvm/versions/node/v18.20.6/bin:\$PATH\" && \
             cd /data/blog && \
-            mkdir -p current && \
-            cd current && \
             tar xzf - && \
             yarn install --frozen-lockfile && \
             export NODE_ENV=production && \
@@ -129,7 +128,9 @@ jobs:
             pm2 start yarn --name blog \
               --time \
               --max-memory-restart 5000M \
-              -- start"
+              --env production \
+              --log-date-format 'YYYY-MM-DD HH:mm:ss' \
+              -- serve"
 
           # 删除SSH密钥
           rm -f ~/.ssh/deploy_key
