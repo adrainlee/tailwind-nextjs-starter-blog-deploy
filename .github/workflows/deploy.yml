@@ -1,17 +1,16 @@
-name: Deploy
+name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main]
-    paths:
-      - 'data/blog/**'
-      - 'app/**'
-      - 'components/**'
-      - 'layouts/**'
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
-  deploy:
-    runs-on: ubuntu-22.04
+  ci:
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -20,76 +19,77 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-          cache: 'yarn'
 
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile
+      - name: Setup Yarn
+        run: |
+          corepack enable
+          corepack prepare yarn@3.6.1 --activate
+
+      - name: Install Dependencies
+        run: yarn install
+
+      - name: Type Check
+        run: yarn tsc --noEmit
+
+      - name: Lint Check
+        run: yarn lint
+
+      - name: Build Check
+        run: yarn build
+
+  deploy:
+    needs: ci
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Setup Yarn
+        run: |
+          corepack enable
+          corepack prepare yarn@3.6.1 --activate
+
+      - name: Install Dependencies
+        run: yarn install
 
       - name: Build
         run: yarn build
 
-      - name: Deploy to production
-        env:
-          SERVER_HOST: ${{ secrets.SERVER_HOST }}
-          SERVER_USERNAME: ${{ secrets.SERVER_USERNAME }}
-          SSH_PRIVATE_KEY: ${{ secrets.SERVER_SSH_KEY }}
-        run: |
-          # 设置SSH密钥
-          mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-
-          # 备份当前版本
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SERVER_USERNAME@$SERVER_HOST "cd /var/www/blog && \
-            if [ -d current ]; then \
-              timestamp=\$(date +%Y%m%d_%H%M%S) && \
-              mv current backup_\$timestamp && \
-              ls -1d backup_* | sort -r | tail -n +4 | xargs -r rm -rf; \
-            fi"
-
-          # 检查并安装必要的软件
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SERVER_USERNAME@$SERVER_HOST "source ~/.bashrc && \
-            nvm use 18 || nvm install 18 && \
-            export PATH=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.nvm/versions/node/v18.20.6/bin:\$PATH\" && \
-            corepack enable && \
-            yarn -v || npm install -g yarn && \
-            npm install -g pm2 && \
-            pm2 -v"
-
-          # 部署新版本
-          tar czf - .next public package.json yarn.lock | ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SERVER_USERNAME@$SERVER_HOST "source ~/.bashrc && \
-            nvm use 18 && \
-            export PATH=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.nvm/versions/node/v18.20.6/bin:\$PATH\" && \
-            cd /var/www/blog && \
-            mkdir -p current && \
-            cd current && \
-            tar xzf - && \
-            nvm use 18 && \
-            corepack enable && \
-            yarn -v && \
-            yarn install && \
-            yarn build && \
-            which pm2 && \
-            pm2 list && \
-            pm2 delete blog || true && \
-            pm2 start yarn --name blog -- start"
-
-          # 删除SSH密钥
-          rm -f ~/.ssh/deploy_key
-
-      - name: Notify deployment status
-        if: always()
-        uses: actions/github-script@v6
+      - name: Deploy to Server
+        uses: appleboy/scp-action@master
         with:
-          script: |
-            const status = '${{ job.status }}'
-            const issue_number = context.issue.number
+          host: ${{ secrets.SERVER_HOST }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: '.next/,public/,package.json,yarn.lock,.yarnrc.yml'
+          target: '/data/blog'
 
-            if (issue_number) {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issue_number,
-                body: `Deployment ${status === 'success' ? 'succeeded ✅' : 'failed ❌'}`
-              })
-            }
+      - name: Execute remote SSH commands
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            cd /data/blog
+            nvm use 18
+
+            # 启用corepack并升级yarn到3.6.1
+            corepack enable
+            corepack prepare yarn@3.6.1 --activate
+
+            # 清理旧的node_modules并重新安装依赖
+            rm -rf node_modules
+            yarn install
+
+            # 重启应用
+            pm2 delete blog || true
+            pm2 start yarn --name "blog" -- start
