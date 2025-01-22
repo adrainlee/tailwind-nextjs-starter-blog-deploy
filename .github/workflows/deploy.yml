@@ -50,6 +50,7 @@ jobs:
           # 检查并安装必要的软件
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SERVER_USERNAME@$SERVER_HOST "source ~/.bashrc && \
             nvm use 18 || nvm install 18 && \
+            export PATH=\"\$PATH:\$(npm root -g)/../bin\" && \
             corepack enable && \
             yarn -v || npm install -g yarn && \
             npm install -g pm2 && \
@@ -57,6 +58,7 @@ jobs:
 
           # 部署新版本
           tar czf - .next public package.json yarn.lock | ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SERVER_USERNAME@$SERVER_HOST "source ~/.bashrc && \
+            export PATH=\"\$PATH:\$(npm root -g)/../bin\" && \
             cd /var/www/blog && \
             mkdir -p current && \
             cd current && \
