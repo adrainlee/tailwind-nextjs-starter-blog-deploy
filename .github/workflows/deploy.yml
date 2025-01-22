@@ -113,7 +113,7 @@ jobs:
             pm2 -v"
 
           # 部署新版本
-          tar czf - .next public package.json next.config.js | \
+          tar czf - .next public package.json yarn.lock next.config.js | \
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SERVER_USERNAME@$SERVER_HOST "source ~/.bashrc && \
             export NVM_DIR=\"\$HOME/.nvm\" && \
             [ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\" && \
@@ -125,13 +125,7 @@ jobs:
             export NODE_ENV=production && \
             export NEXT_TELEMETRY_DISABLED=1 && \
             pm2 delete blog || true && \
-            pm2 delete blog || true && \
-            HOST=0.0.0.0 pm2 start yarn --name blog \
-              --time \
-              --max-memory-restart 5000M \
-              --env production \
-              --log-date-format 'YYYY-MM-DD HH:mm:ss' \
-              -- serve --port 3001 --hostname 0.0.0.0"
+            pm2 start yarn --name blog -- serve --port 3001"
 
           # 删除SSH密钥
           rm -f ~/.ssh/deploy_key
