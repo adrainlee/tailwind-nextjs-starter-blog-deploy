@@ -37,6 +37,12 @@ jobs:
       - name: Lint Check
         run: yarn lint
 
+      - name: Prettier Check
+        run: yarn prettier --check .
+
+      - name: Security Audit
+        run: yarn npm audit
+
   deploy:
     needs: ci
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -67,7 +73,7 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: '.next/,public/,package.json,yarn.lock,.yarnrc.yml,.yarn/,app/'
+          source: '.next/,public/,package.json,yarn.lock,.yarnrc.yml,.yarn/,app/,components/,css/,data/,contentlayer.config.ts'
           target: '/data/blog'
 
       - name: Execute remote SSH commands
