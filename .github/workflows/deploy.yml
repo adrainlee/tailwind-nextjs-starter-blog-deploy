@@ -1,4 +1,4 @@
-name: CD
+name: Deploy
 
 on:
   push:
@@ -11,104 +11,90 @@ on:
 
 jobs:
   deploy:
-    name: 构建和部署
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
-      - name: 检出代码
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: 设置 Node.js
-        uses: actions/setup-node@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'yarn'
 
-      - name: 安装依赖
+      - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-      - name: 构建项目
+      - name: Build
         run: yarn build
+
+      - name: Deploy to production
         env:
-          NODE_OPTIONS: '--max_old_space_size=4096'
-
-      - name: 验证构建结果
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USERNAME: ${{ secrets.SERVER_USERNAME }}
+          SSH_PRIVATE_KEY: ${{ secrets.SERVER_SSH_KEY }}
         run: |
-          if [ ! -d ".next" ]; then
-            echo "构建失败: .next 目录不存在"
-            exit 1
-          fi
-
-      - name: 创建部署包
-        run: |
-          tar -czf deploy.tar.gz .next package.json yarn.lock public
-
-      - name: 设置 SSH
-        uses: webfactory/ssh-agent@v0.7.0
-        with:
-          ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
-
-      - name: 添加服务器到已知主机
-        run: |
+          # 设置SSH密钥
           mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
 
-      - name: 验证SSH配置
-        run: |
-          echo "正在验证SSH配置..."
-          echo "检查SSH代理状态:"
-          ssh-add -l
-          echo "检查known_hosts文件:"
-          cat ~/.ssh/known_hosts
-          echo "尝试SSH连接测试:"
-          ssh -v ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }} 'echo "SSH连接测试成功"'
+          # 备份当前版本
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SERVER_USERNAME@$SERVER_HOST "cd /var/www/blog && \
+            if [ -d current ]; then \
+              timestamp=\$(date +%Y%m%d_%H%M%S) && \
+              mv current backup_\$timestamp && \
+              ls -1d backup_* | sort -r | tail -n +4 | xargs -r rm -rf; \
+            fi"
 
-      - name: 备份当前版本
-        run: |
-          ssh ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }} '
-          cd /var/www/blog &&
-          if [ -d ".next" ]; then
-            timestamp=$(date +%Y%m%d_%H%M%S)
-            mkdir -p backups
-            tar -czf backups/backup_${timestamp}.tar.gz .next package.json yarn.lock public
-            ls -t backups/backup_* | tail -n +4 | xargs rm -f
-          fi'
+          # 检查并安装必要的软件
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SERVER_USERNAME@$SERVER_HOST "
+            # 加载nvm
+            export NVM_DIR=\"\$HOME/.nvm\"
+            [ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\"
+            
+            # 使用Node.js 18
+            nvm use 18 || nvm install 18
+            
+            # 检查yarn是否安装，如果没有则安装
+            if ! command -v yarn &> /dev/null; then
+              npm install -g yarn
+            fi
 
-      - name: 部署新版本
-        id: deploy
-        run: |
-          scp deploy.tar.gz ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }}:/var/www/blog/
-          ssh ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }} '
-          cd /var/www/blog &&
-          tar -xzf deploy.tar.gz &&
-          rm deploy.tar.gz &&
-          sudo corepack enable &&
-          sudo chmod -R 777 /usr/local/share/yarn &&
-          sudo chmod -R 777 /usr/local/bin/yarn &&
-          yarn set version 3.6.1 &&
-          yarn workspaces focus --production &&
-          pm2 restart blog'
+            # 检查PM2是否安装，如果没有则安装
+            if ! command -v pm2 &> /dev/null; then
+              npm install -g pm2
+            fi
+          "
 
-      - name: 部署成功通知
-        if: success()
-        run: echo "✅ 部署成功!"
+          # 部署新版本
+          tar czf - .next public package.json yarn.lock | ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SERVER_USERNAME@$SERVER_HOST "cd /var/www/blog && \
+            mkdir -p current && \
+            cd current && \
+            tar xzf - && \
+            export NVM_DIR="$HOME/.nvm" && \
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && \
+            nvm use 18 && \
+            yarn install && \
+            yarn build && \
+            pm2 restart blog || pm2 start yarn --name blog -- start"
 
-      - name: 部署失败回滚
-        if: failure()
-        run: |
-          ssh ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }} '
-          cd /var/www/blog &&
-          latest_backup=$(ls -t backups/backup_* | head -1) &&
-          if [ -n "$latest_backup" ]; then
-            tar -xzf $latest_backup &&
-            sudo corepack enable &&
-            sudo chmod -R 777 /usr/local/share/yarn &&
-            sudo chmod -R 777 /usr/local/bin/yarn &&
-            yarn set version 3.6.1 &&
-            yarn workspaces focus --production &&
-            pm2 restart blog
-          fi'
+          # 删除SSH密钥
+          rm -f ~/.ssh/deploy_key
 
-      - name: 部署失败通知
-        if: failure()
-        run: echo "❌ 部署失败,已自动回滚到上一个稳定版本!"
+      - name: Notify deployment status
+        if: always()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const status = '${{ job.status }}'
+            const issue_number = context.issue.number
+
+            if (issue_number) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue_number,
+                body: `Deployment ${status === 'success' ? 'succeeded ✅' : 'failed ❌'}`
+              })
+            }
