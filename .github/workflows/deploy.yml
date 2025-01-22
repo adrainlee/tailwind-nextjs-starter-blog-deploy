@@ -67,7 +67,7 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: '.next/,public/,package.json,yarn.lock,.yarnrc.yml'
+          source: '.next/,public/,package.json,yarn.lock,.yarnrc.yml,.yarn/'
           target: '/data/blog'
 
       - name: Execute remote SSH commands
@@ -86,10 +86,13 @@ jobs:
             corepack enable
             corepack prepare yarn@3.6.1 --activate
 
+            # 确保.yarn/releases目录存在
+            mkdir -p .yarn/releases
+
             # 清理旧的node_modules并重新安装依赖
             rm -rf node_modules
             yarn install
 
             # 重启应用
             pm2 delete blog || true
-            pm2 start yarn --name "blog" -- start
+            NODE_ENV=production pm2 start yarn --name "blog" -- start
