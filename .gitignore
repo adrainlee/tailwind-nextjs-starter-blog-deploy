@@ -52,3 +52,5 @@ deploy_key
 deploy_key.pub
 blog.conf
 ecosystem.config.js
+tsconfig.tsbuildinfo
+app/tag-data.json
