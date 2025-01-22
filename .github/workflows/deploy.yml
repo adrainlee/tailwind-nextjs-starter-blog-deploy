@@ -75,13 +75,20 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: >-
             .next/,
+            .contentlayer/,
+            .devcontainer/,
+            .vscode/,
+            .husky/,
             public/,
             app/,
             components/,
             css/,
             data/,
+            docs/,
+            faq/,
             layouts/,
             scripts/,
+            templates/,
             contentlayer.config.ts,
             next.config.js,
             postcss.config.js,
@@ -89,11 +96,15 @@ jobs:
             tsconfig.json,
             eslint.config.mjs,
             prettier.config.js,
+            next-env.d.ts,
+            jsconfig.json,
             package.json,
             yarn.lock,
             .yarnrc.yml,
             .yarn/,
-            vercel.json
+            vercel.json,
+            README.md,
+            LICENSE
           target: '/data/blog'
 
       - name: Execute remote SSH commands
