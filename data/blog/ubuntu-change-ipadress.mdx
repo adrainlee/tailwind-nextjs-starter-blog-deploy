@@ -5,24 +5,29 @@ tags: ['ubuntu server', 'network', 'ipadress']
 draft: false
 summary: T在服务器运维中，配置静态IP是一项基础但关键的操作。本文将详细介绍如何在Ubuntu Server中安全地配置静态IP地址...
 ---
+
 **特别警告**: 错误的网络配置可能导致远程连接丢失。强烈建议:
+
 - 在进行远程操作时保持一个备用连接
 - 修改配置前先备份原配置
 - 准备回滚方案
 - 不适用于 vps，因为 vps 大部分采用 cloud-init 或使用 DHCP 以及其他服务来管理主机名和网络
 
 ## 常用的网卡管理工具
+
 在 Ubuntu Server 中主要有这两种现代化的网络管理工具， netplan 和systemd-networkd， 默认是使用 netplan 来管理网络
 netplan 和 systemd-networkd 的关系：
+
 - Netplan 可以作为上层配置工具，生成 systemd-networkd 的配置
 - 也可以跳过 Netplan，直接使用 systemd-networkd 管理网络
-** 选择建议：**
+  ** 选择建议：**
 
 - 如果使用标准 Ubuntu Server，建议用默认的 Netplan
 - 如果需要更底层的控制，或者更喜欢 systemd 的配置方式，可以直接用 systemd-networkd
 - 两者选一种使用即可，避免混用
 
 ## Netplan工具介绍
+
 Netplan是Ubuntu 17.10后引入的网络配置工具，具有以下特点：
 
 - 使用YAML格式配置文件
@@ -44,23 +49,32 @@ network:
       routes:
         - to: default
           via: <gateway-ip>
-
 ```
+
 ## 配置步骤
+
 ### 确认当前网络状态和网卡名称
+
 ```bash
 ip addr
 ```
+
 ### 备份现有配置
+
 ```bash
 sudo cp /etc/netplan/00-installer-config.yaml /etc/netplan/00-installer-config.yaml.bak
 ```
+
 ### 配置静态IP
+
 - 编辑配置文件
+
 ```bash
 sudo vim /etc/netplan/00-installer-config.yaml
 ```
+
 - 配置内容示例
+
 ```yaml
 network:
   version: 2
@@ -70,14 +84,16 @@ network:
       addresses:
         - 192.168.123.150/24
       nameservers:
-        addresses: 
+        addresses:
           - 119.29.29.29
           - 8.8.8.8
       routes:
         - to: default
           via: 192.168.123.1
 ```
+
 ### 测试和应用
+
 ```bash
 # 测试配置语法
 sudo netplan try
@@ -90,17 +106,21 @@ ip addr
 ```
 
 ## 故障排查
+
 - 使用debug模式应用配置：
+
 ```bash
 sudo netplan --debug apply
 ```
 
 - 检查系统网络服务状态
+
 ```bash
 sudo systemctl status systemd-networkd
 ```
 
 - 回滚脚本示例
+
 ```bash
 # 恢复配置文件
 sudo cp /etc/netplan/00-installer-config.yaml.bak /etc/netplan/00-installer-config.yaml
@@ -114,4 +134,5 @@ ping -c 4 8.8.8.8
 ```
 
 ## 总结
+
 本文提供了常用的操作，仅供参考
