@@ -64,8 +64,10 @@ jobs:
       - name: Install Dependencies
         run: yarn install
 
-      - name: Build
-        run: yarn build
+      - name: Build Production
+        run: |
+          export NODE_ENV=production
+          yarn build
 
       - name: Deploy to Server
         uses: appleboy/scp-action@master
@@ -114,22 +116,38 @@ jobs:
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            # 设置Node.js环境
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            cd /data/blog
-            nvm use 18
+            cd /data/blog || exit 1
+            nvm use 18 || exit 1
 
-            # 启用corepack并升级yarn到3.6.1
+            # 设置系统限制
+            ulimit -n 65535
+
+            # 启用并配置Yarn
             corepack enable
             corepack prepare yarn@3.6.1 --activate
-
-            # 确保.yarn/releases目录存在
             mkdir -p .yarn/releases
 
-            # 清理旧的node_modules并重新安装依赖
+            # 确保目录权限
+            chown -R ubuntu:ubuntu .
+
+            # 清理和准备环境
             rm -rf node_modules
-            yarn install
+            rm -rf .next
+            # 设置环境变量
+            export NODE_ENV=production
+            export NEXT_TELEMETRY_DISABLED=1
+
+            # 清理缓存
+            yarn cache clean
+            rm -rf .next/cache
+
+            # 安装依赖并构建
+            yarn install --frozen-lockfile
+            yarn build
 
             # 重启应用
             pm2 delete blog || true
-            NODE_ENV=production pm2 start yarn --name "blog" -- start
+            pm2 start npm --name "blog" -- start -- --port 3000 --hostname 0.0.0.0
