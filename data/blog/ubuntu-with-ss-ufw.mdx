@@ -1,0 +1,242 @@
+---
+title: '使用 ss 命令和ufw 防火墙查看和管理 ubuntu 的端口'
+date: '2025-02-02'
+tags: ['ubuntu server', 'network', 'ipadress', 'ufw', 'ss']
+draft: false
+summary: Linux 服务器网络管理需围绕 "精准溯源 → 动态封控 → 持续验证" 建立闭环；通过实时监控（如连接状态、流量特征）定位异常源（高频IP、半开连接），结合进程定位关联服务；分层实施速率限制（缓解洪峰）、精准IP封禁（阻断攻击）及协议级过滤（拦截隐蔽威胁），规则热加载保障业务无损...
+---
+
+## 一、为什么需要掌握 ss 和 UFW？
+
+🔧 **ss (Socket Statistics)** - 基于内核级数据采集的新一代网络诊断工具，具备三大核心优势：
+
+1. **内核级高效性**
+   - 直接读取内核 socket 数据结构，无需解析 `/proc/net` 文件层级
+   - 毫秒级响应速度，万级连接场景下性能碾压传统工具
+2. **深度可观测性**
+   - 原生支持 TCP 状态机过滤（ESTABLISHED/TIME_WAIT 等 11 种状态）
+   - 可透视套接字内存用量、定时器状态、拥塞控制算法等底层细节
+3. **工业级诊断能力**
+   - 类 tcpdump 的 BPF 过滤语法，支持多条件复合查询
+   - 动态显示进程绑定关系（FD-PID-EXEC 三级映射）
+   - 无缝对接 Prometheus 等监控系统，支持 JSON 结构化输出
+
+🔒 UFW **(Uncomplicated Firewall)** UFW 并非简单的 iptables 简化工具，而是现代 Linux 网络策略的事实标准中间件。其设计哲学在于通过 声明式 API 解耦安全策略与底层网络实现，为云原生时代的全栈可观测性提供基础设施支撑。
+
+- **策略抽象引擎**
+  - 将 iptables/nftables 链式规则转化为「策略-应用-端口」三维模型
+  - 原生支持 IPv4/IPv6 双栈拓扑自动同步（`ufw6` 零配置适配）
+- **声明式配置模型**
+  - 通过 `/etc/ufw/{before,after}.rules` 实现企业级规则分层管理
+  - 支持热重载（`ufw reload`）避免服务中断
+
+**核心特性**  
+| 功能维度 | 技术实现 |
+|------------------|---------------------------------------------------------------------------|
+| 应用感知 | 预置 Apache/Nginx/OpenSSH 等 50+ 应用模板（基于 `/etc/ufw/applications.d`） |
+| 流量整形 | 集成 `limit` 模块实现自适应速率控制（令牌桶算法，防 DDoS/CC 攻击） |
+| 智能审计 | 可视化规则拓扑生成（`ufw status verbose` + 时间戳标记） |
+
+**企业级扩展能力**
+
+```bash
+# 动态策略示例：自动封禁 SSH 暴力破解 IP（集成 Fail2ban）
+sudo ufw deny proto tcp from <$(grep 'SSH brute-force' /var/log/auth.log | awk '{print $NF}' | sort -u)>
+```
+
+---
+
+## 二、ss 命令：网络连接透视镜
+
+### 2.1 基础操作四连击
+
+```bash
+# 1. 查看所有 TCP 监听端口（含进程信息）
+sudo ss -ltnp
+
+# 2. 显示 UDP 端口使用情况
+ss -u -a
+
+# 3. 按端口过滤（查看 3306 端口连接）
+ss -t '( dport = :3306 )'
+
+# 4. 连接状态统计（推荐运维日常巡检）
+ss -s
+```
+
+**输出解析案例:**
+
+```bash
+Netid  State   Recv-Q  Send-Q  Local Address:Port   Peer Address:Port
+tcp    ESTAB   0       0       192.168.1.10:ssh     203.0.113.5:63451
+```
+
+- **ESTAB：** 已建立连接
+- **Recv-Q/Send-Q：** 队列积压数据量（>0 可能有性能问题）
+- **ssh：22** 端口别名（实际显示为数字端口时可加 -n 禁用解析）
+
+**TCP 连接健康检查**
+
+```bash
+# 查看连接重传等细节（需 root 权限）
+sudo ss -eti
+# 重点关注：
+# retrans:0/1 表示重传次数
+# rto:204ms   RTO 时间（正常值 200-400ms）
+```
+
+<div className="ufw-guide">
+
+### UFW 防火墙：安全策略可视化
+
+#### 3.1 四步快速上手
+
+```bash
+# 1. 安装并启用
+sudo apt install ufw
+sudo ufw enable  # 切记先放行 SSH！
+
+# 2. 放行 Web 服务
+sudo ufw allow 80/tcp comment 'HTTP'
+sudo ufw allow 443/tcp comment 'HTTPS'
+
+# 3. 配置数据库白名单
+sudo ufw allow from 10.8.0.0/24 to any port 3306 proto tcp
+
+# 4. 验证规则
+sudo ufw status numbered
+```
+
+#### 3.2 六大黄金配置模板
+
+<div className="config-table-container">
+  <table className="config-table">
+    <thead>
+      <tr>
+        <th>场景</th>
+        <th>命令示例</th>
+        <th>说明</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          <strong>应急锁定</strong>
+        </td>
+        <td>
+          <code>ufw default deny incoming</code>
+        </td>
+        <td>默认拒绝所有入站</td>
+      </tr>
+      <tr>
+        <td>
+          <strong>放行特定应用</strong>
+        </td>
+        <td>
+          <code>ufw allow 'Nginx Full'</code>
+        </td>
+        <td>使用应用配置文件（/etc/ufw）</td>
+      </tr>
+      <tr>
+        <td>
+          <strong>限制 SSH 访问源</strong>
+        </td>
+        <td>
+          <code>ufw allow proto tcp from 192.168.1.0/24 to any port 22</code>
+        </td>
+        <td>企业内网访问控制</td>
+      </tr>
+      <tr>
+        <td>
+          <strong>端口转发</strong>
+        </td>
+        <td>
+          <code>ufw route allow proto tcp from any to 192.168.1.5 port 80</code>
+        </td>
+        <td>流量转发到内网服务器</td>
+      </tr>
+      <tr>
+        <td>
+          <strong>速率限制</strong>
+        </td>
+        <td>
+          <code>ufw limit 22/tcp</code>
+        </td>
+        <td>防暴力破解（每分钟 6 次连接）</td>
+      </tr>
+      <tr>
+        <td>
+          <strong>日志分析</strong>
+        </td>
+        <td>
+          <code>sudo tail -f /var/log/ufw.log</code>
+        </td>
+        <td>实时监控拦截事件</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+</div>
+
+<div className="security-deployment">
+
+## 联合实战：Web 服务器安全部署
+
+### 4.1 部署流程
+
+#### 服务验证 - 使用 ss 确认服务监听状态：
+
+```bash
+ss -ltnp '( sport = :80 or sport = :443 )'
+# 正常应显示 nginx/apache 进程监听 0.0.0.0:80
+```
+
+#### 防火墙配置 - 精细化访问控制：
+
+```bash
+# 放行 HTTPS 访问
+sudo ufw allow 443/tcp
+
+# 仅允许办公室 IP 访问管理后台
+sudo ufw allow from 203.0.113.0/28 to any port 8080 proto tcp
+```
+
+#### 安全加固 - 防御常见攻击：
+
+```bash
+# 限制 SSH 连接频率
+sudo ufw limit 22/tcp
+
+# 屏蔽恶意 IP（通过日志分析后添加）
+sudo ufw deny from 202.96.134.0/24
+```
+
+## 五、深度优化技巧
+
+### 5.1 ss 性能调优
+
+```bash
+# 查看 TCP 内存使用（单位：页）
+ss -tmp
+# 重要指标：
+# skmem:(r<rbuf>,f<fwd>,w<wmem>,o<opt>,bl<backlog>)
+# 当 oom (out of memory) 出现时需调整内核参数
+```
+
+### 5.2 UFW 高级配置
+
+```yaml
+# 修改 /etc/ufw/before.rules 实现：
+# - 端口转发
+# - 连接追踪
+# - 自定义日志格式
+
+# 示例：NAT 端口转发
+*nat
+:PREROUTING ACCEPT [0:0]
+-A PREROUTING -p tcp --dport 2222 -j REDIRECT --to-port 22
+COMMIT
+```
+
+</div>
