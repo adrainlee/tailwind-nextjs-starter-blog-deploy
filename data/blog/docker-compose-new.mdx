@@ -1,0 +1,81 @@
+---
+title: Docker Compose 别名配置
+date: '2025-02-19'
+tags: ['docker', 'docker compose', 'docker-compose']
+draft: false
+summary: Docker Compose V2 引入了 docker compose 子命令模式，导致旧脚本和容器命名规范出现兼容性问题。为了兼容旧命令需要使用脚本的方式，在脚本中可以选择直接代理到新命令或启用旧版命名规范。通过这种渐进式升级策略，以达到兼顾新功能和旧基础设施的目的。
+---
+
+# Docker Compose V2 命令兼容性配置
+
+Docker Compose V2 推出后，Docker 官方对命令行工具进行了重大调整，从传统的 docker-compose 迁移到 docker compose 的子命令模式。这种变化带来了更紧密的 Docker CLI 集成，但也引发了一些兼容性问题。特别是对于依赖旧版命令的脚本和工具，以及容器命名规范的改变，在日常使用中可以通过创建别名或兼容性脚本来解决这些问题。
+
+## 配置别名（不推荐）
+
+可以在 `~/.bashrc` 中添加别名（默认你使用的是bash）：
+
+```bash
+alias docker-compose="docker compose --compatibility"
+```
+
+但是使用别名的方式不能跨文件系统，只能在当前shell生效，主要适用于个人用户，多人开发和维护时配置不方便。
+
+## 创建兼容脚本
+
+我们可以创建一个系统级别的脚本，保留传统命令的使用形式，并按需启用旧版命名规范。
+
+### 步骤 1：创建脚本文件
+
+首先，我们需要使用 root 权限在 `/bin` 目录下创建 `docker-compose` 脚本，并赋予其可执行权限：
+
+```bash
+sudo vim /bin/docker-compose
+```
+
+### 步骤 2：编写脚本逻辑
+
+根据需求，选择一种模式即可：
+
+#### 模式 A：直接代理到新命令（使用新命名规范）
+
+```bash
+#!/bin/bash
+docker compose "$@"
+```
+
+#### 模式 B：强制兼容旧命名规范
+
+```bash
+#!/bin/bash
+docker compose --compatibility "$@"
+```
+
+其中，`--compatibility` 参数非常重要，因为它会启用 V1 版本的兼容模式，包括容器/网络名称中的下划线（\_）分隔符。
+
+### 步骤 3：设置可执行权限
+
+确保脚本具有可执行权限：
+
+```bash
+sudo chmod +x /bin/docker-compose
+```
+
+### 步骤 4：验证安装
+
+执行以下命令确认配置成功：
+
+```bash
+docker-compose version
+# 预期输出示例：
+# Docker Compose version v2.20.0
+```
+
+## 原理解释
+
+### 路径优先级的利用
+
+在 Linux 系统中，`/bin` 目录默认在环境变量中，当我们在 `/bin` 目录下放置同名脚本时，系统会优先执行这个脚本。
+
+### 参数传递技巧
+
+使用 `"$@"` 将原始命令的参数完整传递给新命令，确保任何 docker-compose 参数都能正常运行。
