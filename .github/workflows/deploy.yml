@@ -52,9 +52,15 @@ jobs:
         run: npm run lint
 
       - name: Format Check
+        run: npm run format
+
+      - name: Check for uncommitted changes
         run: |
-          npm run prettier -- --write .
-          git diff --exit-code || (echo "Files were formatted. Please commit the changes." && exit 1)
+          if [[ -n "$(git status --porcelain)" ]]; then
+            echo "Found uncommitted changes after formatting. Please run 'npm run format' and commit the changes."
+            git diff
+            exit 1
+          fi
 
       - name: Security Audit
         run: npm audit
