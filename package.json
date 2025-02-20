@@ -10,7 +10,8 @@
     "analyze": "cross-env ANALYZE=true next build",
     "lint": "next lint --fix --dir pages --dir app --dir components --dir lib --dir layouts --dir scripts",
     "prepare": "husky",
-    "tsc": "tsc"
+    "tsc": "tsc",
+    "prettier": "prettier"
   },
   "dependencies": {
     "@headlessui/react": "2.2.0",
