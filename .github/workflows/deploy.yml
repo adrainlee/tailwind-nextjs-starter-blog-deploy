@@ -37,32 +37,25 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-          cache: 'yarn'
-
-      - name: Setup Yarn
-        run: |
-          corepack enable
-          corepack prepare yarn@3.6.1 --activate
+          cache: 'npm'
 
       - name: Install Dependencies
-        env:
-          YARN_ENABLE_IMMUTABLE_INSTALLS: false
-        run: yarn install
+        run: npm ci
 
       - name: Build Check
-        run: yarn build
+        run: npm run build
 
       - name: Type Check
-        run: yarn tsc --noEmit
+        run: npm run tsc --noEmit
 
       - name: Lint Check
-        run: yarn lint
+        run: npm run lint
 
       - name: Prettier Check
-        run: yarn prettier --check .
+        run: npm run prettier --check .
 
       - name: Security Audit
-        run: yarn npm audit
+        run: npm audit
 
   deploy:
     needs: ci
@@ -76,15 +69,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-          cache: 'yarn'
+          cache: 'npm'
 
       - name: Install dependencies
-        env:
-          YARN_ENABLE_IMMUTABLE_INSTALLS: false
-        run: yarn install
+        run: npm ci
 
       - name: Build
-        run: yarn build
+        run: npm run build
 
       - name: Deploy to production
         env:
@@ -112,13 +103,11 @@ jobs:
             [ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\" && \
             nvm use 18 || nvm install 18 && \
             export PATH=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.nvm/versions/node/v18.20.6/bin:\$PATH\" && \
-            corepack enable && \
-            yarn -v || npm install -g yarn && \
             npm install -g pm2 && \
             pm2 -v"
 
           # 部署新版本
-          tar czf - .next public package.json yarn.lock next.config.js | \
+          tar czf - .next public package.json package-lock.json next.config.js | \
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $SERVER_USERNAME@$SERVER_HOST "source ~/.bashrc && \
             export NVM_DIR=\"\$HOME/.nvm\" && \
             [ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\" && \
@@ -126,12 +115,11 @@ jobs:
             export PATH=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.nvm/versions/node/v18.20.6/bin:\$PATH\" && \
             cd /data/blog && \
             tar xzf - && \
-            export YARN_ENABLE_IMMUTABLE_INSTALLS=false && \
-            yarn install && \
+            npm ci && \
             export NODE_ENV=production && \
             export NEXT_TELEMETRY_DISABLED=1 && \
             pm2 delete blog || true && \
-            pm2 start yarn --name blog -- serve --port 3001"
+            pm2 start npm --name blog -- run serve -- --port 3001"
 
           # 删除SSH密钥
           rm -f ~/.ssh/deploy_key
