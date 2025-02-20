@@ -51,8 +51,10 @@ jobs:
       - name: Lint Check
         run: npm run lint
 
-      - name: Prettier Check
-        run: ./node_modules/.bin/prettier --check .
+      - name: Format Check
+        run: |
+          npm run prettier -- --write .
+          git diff --exit-code || (echo "Files were formatted. Please commit the changes." && exit 1)
 
       - name: Security Audit
         run: npm audit
