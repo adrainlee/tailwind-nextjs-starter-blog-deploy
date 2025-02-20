@@ -44,7 +44,7 @@ jobs:
           corepack prepare yarn@3.6.1 --activate
 
       - name: Install Dependencies
-        run: yarn install
+        run: yarn install --frozen-lockfile
 
       - name: Build Check
         run: yarn build
