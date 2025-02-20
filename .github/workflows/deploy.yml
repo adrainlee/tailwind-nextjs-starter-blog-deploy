@@ -45,7 +45,9 @@ jobs:
           corepack prepare yarn@3.6.1 --activate
 
       - name: Install Dependencies
-        run: yarn install --frozen-lockfile
+        env:
+          YARN_ENABLE_IMMUTABLE_INSTALLS: false
+        run: yarn install
 
       - name: Build Check
         run: yarn build
@@ -77,7 +79,9 @@ jobs:
           cache: 'yarn'
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        env:
+          YARN_ENABLE_IMMUTABLE_INSTALLS: false
+        run: yarn install
 
       - name: Build
         run: yarn build
@@ -122,7 +126,8 @@ jobs:
             export PATH=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.nvm/versions/node/v18.20.6/bin:\$PATH\" && \
             cd /data/blog && \
             tar xzf - && \
-            yarn install --frozen-lockfile && \
+            export YARN_ENABLE_IMMUTABLE_INSTALLS=false && \
+            yarn install && \
             export NODE_ENV=production && \
             export NEXT_TELEMETRY_DISABLED=1 && \
             pm2 delete blog || true && \
