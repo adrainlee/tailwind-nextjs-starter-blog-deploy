@@ -46,7 +46,7 @@ jobs:
         run: npm run build
 
       - name: Type Check
-        run: npx typescript@5.1.3 --noEmit
+        run: ./node_modules/.bin/tsc --noEmit
 
       - name: Lint Check
         run: npm run lint
