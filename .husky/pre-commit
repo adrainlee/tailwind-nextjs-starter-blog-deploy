@@ -1,1 +1,5 @@
-npx --no-install lint-staged
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# 使用npx运行lint-staged，它会根据package.json中的配置运行prettier和eslint
+npx lint-staged
