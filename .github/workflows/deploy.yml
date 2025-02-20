@@ -103,8 +103,7 @@ jobs:
             [ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\" && \
             nvm use 18 || nvm install 18 && \
             export PATH=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/root/.nvm/versions/node/v18.20.6/bin:\$PATH\" && \
-            npm install -g pm2 && \
-            pm2 -v"
+            npm install -g pm2"
 
           # 部署新版本
           tar czf - .next public package.json package-lock.json next.config.js | \
