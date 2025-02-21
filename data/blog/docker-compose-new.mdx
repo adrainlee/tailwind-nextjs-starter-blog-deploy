@@ -79,3 +79,18 @@ docker-compose version
 ### 参数传递技巧
 
 使用 `"$@"` 将原始命令的参数完整传递给新命令，确保任何 docker-compose 参数都能正常运行。
+
+感谢你读到了最后，如果你跟我一样懒，请使命下面的命令来实现这个功能
+
+#### 模式A
+
+```bash
+{ echo '#!/bin/bash'; echo 'docker compose "$@"'; } | sudo tee /bin/docker-compose >/dev/null && sudo chmod +x /bin/docker-compose
+```
+
+#### 模式B
+
+```bash
+{ echo '#!/bin/bash'; echo 'docker compose { echo '#!/bin/bash'; echo 'docker compose "$@"'; } | sudo tee /bin/docker-compose >/dev/null && sudo chmod +x /bin/docker-compose
+ "$@"'; } | sudo tee /bin/docker-compose >/dev/null && sudo chmod +x /bin/docker-compose
+```
