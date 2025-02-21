@@ -1,0 +1,121 @@
+---
+title: ubuntu LVM存储空间未充分利用的分析与解决
+date: '2025-02-21'
+tags: ['ubuntu', 'LVM']
+draft: false
+summary: '使用闲置服务器安装了ubuntu，安装后使用是发现硬盘只有实际的一半，才知道当初安装系统时闭眼选择出现了错误，这主要是默认情况下卷组与逻辑卷之间存在未分配的空间这就需要扩展逻辑卷以利用剩余空间，并调整文件系统以识别新空间'
+---
+
+**关键注意事项**：对根分区进行操作时，请确保：
+
+1. 已做好完整备份
+2. 系统处于稳定供电环境
+3. 避免在生产环境高峰时段操作
+
+# 问题背景
+
+新安装的服务器上下载了几个docker镜像，提示空间不足，通过`df -h`查看硬盘大小发现只有一半的硬盘空间
+
+```bash
+df -h
+Filesystem                         Size  Used Avail Use% Mounted on
+tmpfs                              794M  1.4M  793M   1% /run
+/dev/mapper/ubuntu--vg-ubuntu--lv   28G   24G  3.3G  88% /
+tmpfs                              3.9G     0  3.9G   0% /dev/shm
+tmpfs                              5.0M     0  5.0M   0% /run/lock
+/dev/sda2                          2.0G  244M  1.6G  14% /boot
+/dev/sda1                          1.1G  6.1M  1.1G   1% /boot/efi
+tmpfs                              794M  4.0K  794M   1% /run/user/1000
+```
+
+使用fdisk查看, `/dev/sda3`分区显示 56.9G, LVM 逻辑卷 (/dev/mapper/ubuntu--vg-ubuntu--lv) 的只有 28.47G,很显然LVM 卷组 (ubuntu-vg) 可能未完全使用 /dev/sda3 的空间
+
+```bash
+sudo fdisk -l
+.......
+Device       Start       End   Sectors  Size Type
+/dev/sda1     2048   2203647   2201600    1G EFI System
+/dev/sda2  2203648   6397951   4194304    2G Linux filesystem
+/dev/sda3  6397952 125827071 119429120 56.9G Linux filesystem
+.......
+```
+
+通过以下命令验证,发现确实存在使用的硬盘空间
+
+```bash
+# 查看物理卷（PV）分配情况
+sudo pvdisplay
+  --- Physical volume ---
+  PV Name               /dev/sda3
+  VG Name               ubuntu-vg
+  PV Size               <56.95 GiB / not usable 3.00 MiB
+  Allocatable           yes
+
+# 查看卷组（VG）剩余空间
+sudo vgdisplay ubuntu-vg
+  --- Volume group ---
+  VG Name               ubuntu-vg
+  System ID
+  Format                lvm2
+  .......
+  VG Size               <196.95 GiB
+
+  Total PE              50418
+  Alloc PE / Size       25209 / 98.47 GiB
+  Free  PE / Size       25209 / 98.47 GiB
+  .......
+# 查看逻辑卷（LV）分配情况
+sudo lvdisplay
+  --- Logical volume ---
+  LV Path                /dev/ubuntu-vg/ubuntu-lv
+  LV Name                ubuntu-lv
+  VG Name                ubuntu-vg
+  .......
+  # open                 1
+  LV Size                98.47 GiB
+  Current LE             25209
+```
+
+# 通过 lvextend 扩展逻辑卷,依次执行下列命令
+
+```bash
+sudo lvextend -l +100%FREE /dev/mapper/ubuntu--vg-ubuntu--lv
+sudo resize2fs /dev/mapper/ubuntu--vg-ubuntu--lv  # 对 ext4 文件系统生效
+```
+
+```bash
+sudo resize2fs /dev/mapper/ubuntu--vg-ubuntu--lv
+resize2fs 1.46.5 (30-Dec-2021)
+Filesystem at /dev/mapper/ubuntu--vg-ubuntu--lv is mounted on /; on-line resizing required
+old_desc_blocks = 4, new_desc_blocks = 11
+The filesystem on /dev/mapper/ubuntu--vg-ubuntu--lv is now 22391808 (4k) blocks long.
+```
+
+## 简单图解
+
+```text
+      原始状态                 扩展LV后              resize2fs后
+┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
+│   PV (56.9G)    │      │   PV (56.9G)    │      │   PV (56.9G)    │
+│  ┌───────────┐  │      │  ┌───────────┐  │      │  ┌───────────┐  │
+│  │ LV (28G)  │  │      │  │ LV (56G)  │  │      │  │ LV (56G)  │  │
+│  └───────────┘  │      │  └───────────┘  │      │  └───────────┘  │
+│       ↑         │      │       ↑         │      │       ⇅         │
+│ 文件系统(28G)    │      │ 文件系统(28G)   │      │ 文件系统(56G)    │
+└─────────────────┘      └─────────────────┘      └─────────────────┘
+```
+
+如果命令不生效就要确认文件系统类型，使用以下命令
+
+```bash
+lsblk -f /dev/mapper/ubuntu--vg-ubuntu--lv
+```
+
+不同文件系统使用的命令不同
+
+| 文件系统类型 | 扩展命令                  | 是否支持在线调整 |
+| ------------ | ------------------------- | ---------------- |
+| ext4         | `resize2fs <device>`      | ✅               |
+| XFS          | `xfs_growfs <mountpoint>` | ✅               |
+| Btrfs        | `btrfs filesystem resize` | ✅               |
+| ZFS          | `zfs set quota=...`       | ✅               |
